@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+recordings/
+*.log
+.DS_Store
+.env
+.env.local
+
+# Locally generated development TLS material — never commit private keys.
+infra/certs/*.pem
+
+# Android / React Native
+packages/mobile/android/.gradle/
+packages/mobile/android/app/build/
+packages/mobile/android/build/
+packages/mobile/android/local.properties
+packages/mobile/android/.cxx/
+*.keystore
+!debug.keystore
+packages/mobile/.expo/
