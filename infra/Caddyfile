@@ -1,0 +1,25 @@
+# Terminates TLS with an automatic Let's Encrypt certificate and proxies both the
+# app and the signaling WebSocket to the SFU container.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# WebSocket upgrades must not be buffered or the signaling channel stalls.
+	@websocket {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websocket meet:4000
+
+	reverse_proxy /api/* meet:4000
+	reverse_proxy /health meet:4000
+	reverse_proxy /* meet:4000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# The app captures camera, microphone and display; nothing else.
+		Permissions-Policy "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()"
+	}
+}

@@ -92,16 +92,31 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Release signing is driven by gradle properties so the keystore and its
+        // passwords never enter the repository. Supply them in
+        // ~/.gradle/gradle.properties or as -P flags / ORG_GRADLE_PROJECT_* env
+        // vars in CI. See packages/mobile/README.md.
+        release {
+            if (project.hasProperty('MEET_RELEASE_STORE_FILE')) {
+                storeFile file(MEET_RELEASE_STORE_FILE)
+                storePassword MEET_RELEASE_STORE_PASSWORD
+                keyAlias MEET_RELEASE_KEY_ALIAS
+                keyPassword MEET_RELEASE_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Falls back to the debug key for local release testing only; a build
+            // without MEET_RELEASE_STORE_FILE must never be published.
+            signingConfig project.hasProperty('MEET_RELEASE_STORE_FILE')
+                ? signingConfigs.release
+                : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }

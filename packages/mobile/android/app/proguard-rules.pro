@@ -8,3 +8,10 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# ---------------------------------------------------------------- WebRTC
+# libwebrtc's Java layer is called from native code by reflection; stripping or
+# renaming it produces a build that only fails once a call actually starts.
+-keep class org.webrtc.** { *; }
+-keep class com.oney.WebRTCModule.** { *; }
+-dontwarn org.webrtc.**

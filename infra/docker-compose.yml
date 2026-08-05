@@ -1,0 +1,91 @@
+# Meet — single-host deployment.
+#
+# The SFU needs its media ports reachable from clients, and MEDIASOUP_ANNOUNCED_IP
+# must be the address clients will actually send RTP to (the host's public IP, not
+# a Docker-internal one). That is why the media ports are published directly rather
+# than proxied.
+services:
+  meet:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - '4000:4000'
+      # One UDP+TCP pair per mediasoup worker, starting at MEDIASOUP_WEBRTC_SERVER_PORT.
+      - '44444-44451:44444-44451/udp'
+      - '44444-44451:44444-44451/tcp'
+    environment:
+      NODE_ENV: production
+      PORT: '4000'
+      SERVE_STATIC: 'true'
+      # REQUIRED: the address clients send media to.
+      MEDIASOUP_ANNOUNCED_IP: ${PUBLIC_IP:?set PUBLIC_IP to this host's public address}
+      MEDIASOUP_USE_WEBRTC_SERVER: 'true'
+      MEDIASOUP_WEBRTC_SERVER_PORT: '44444'
+      # Keep this at or below the published port range above.
+      MEDIASOUP_WORKERS: '8'
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET to a strong random value}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      ROOM_MAX_PEERS: ${ROOM_MAX_PEERS:-100}
+      RECORDING_ENABLED: ${RECORDING_ENABLED:-false}
+      RECORDING_DIR: /app/recordings
+      STUN_URLS: stun:stun.l.google.com:19302
+      TURN_URLS: turn:${PUBLIC_IP}:3478?transport=udp,turn:${PUBLIC_IP}:3478?transport=tcp
+      TURN_USERNAME: ${TURN_USERNAME:-meet}
+      TURN_PASSWORD: ${TURN_PASSWORD:?set TURN_PASSWORD}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - recordings:/app/recordings
+    depends_on:
+      - coturn
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # A TURN relay is not optional in the real world: symmetric NATs and corporate
+  # firewalls will otherwise block a meaningful share of participants outright.
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - --listening-port=3478
+      - --fingerprint
+      - --lt-cred-mech
+      - --realm=meet
+      - --user=${TURN_USERNAME:-meet}:${TURN_PASSWORD:?set TURN_PASSWORD}
+      - --external-ip=${PUBLIC_IP}
+      - --min-port=49160
+      - --max-port=49200
+      - --no-multicast-peers
+      # Block relaying to private ranges so the TURN server cannot be used to
+      # probe the internal network.
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+      - --no-cli
+
+  # Terminates TLS. getUserMedia and getDisplayMedia require a secure context, so
+  # a browser will refuse to publish media over plain HTTP on any real hostname.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN to the public hostname}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - meet
+
+volumes:
+  recordings:
+  caddy-data:
+  caddy-config:
