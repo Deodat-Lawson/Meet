@@ -21,6 +21,14 @@ export class Peer {
 
   /** True once the `join` request completed successfully. */
   joined = false;
+  /**
+   * Set when a host admits this peer out of the waiting room.
+   *
+   * The client re-runs the join handshake after admission, so without this the
+   * lobby check would match a second time and bounce them straight back — an
+   * admitted guest could never actually get in.
+   */
+  admittedFromLobby = false;
   handRaised = false;
   /** Set by the host's "mute all + don't allow unmute" control. */
   unmuteBlocked = false;

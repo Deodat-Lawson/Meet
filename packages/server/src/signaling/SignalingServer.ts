@@ -231,7 +231,8 @@ export class SignalingServer {
       case 'join': {
         const payload = data as ClientRequests['join']['request'];
         peer.device = payload.device;
-        if (room.info.lobbyEnabled && !peer.isModerator) {
+        // Moderators skip the waiting room, and so does anyone a host already let in.
+        if (room.info.lobbyEnabled && !peer.isModerator && !peer.admittedFromLobby) {
           peer.displayName = payload.displayName;
           peer.rtpCapabilities = payload.rtpCapabilities;
           room.addToLobby(peer);

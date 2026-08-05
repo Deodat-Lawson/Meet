@@ -172,14 +172,20 @@ instances.
 ## Tests
 
 ```bash
-npm run test -w @meet/server        # unit tests
-npm run test:e2e -w @meet/server    # full end-to-end, needs the dev servers running
+npm run test -w @meet/server            # unit tests
+npm run test:e2e -w @meet/server        # full meeting flow, needs the dev servers running
+npm run test:e2e:lobby -w @meet/server  # waiting room: queue, admit, deny
 ```
 
 The end-to-end suite drives two real Chrome instances through the real UI against
 the real SFU and asserts inbound RTP byte counts for microphone, camera and screen
 share — not just signaling state. It also covers moderation permissions, the
 one-share-at-a-time rule, mute propagation, chat and leaving.
+
+The lobby suite covers a path that is easy to get subtly wrong: the client re-runs
+the join handshake after being admitted, so a naive lobby check bounces the guest
+straight back into the queue. Reverting that guard turns the suite red (3/6), which
+is the point of having it.
 
 `test:e2e:cross` verifies a browser against a live Android client (start the app,
 join a meeting, then pass its code as `E2E_ROOM`), which is what catches codec or

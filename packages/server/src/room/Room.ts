@@ -248,6 +248,7 @@ export class Room extends EventEmitter {
     this.lobby.delete(peerId);
 
     if (admit) {
+      entry.peer.admittedFromLobby = true;
       this.peers.set(peerId, entry.peer);
       entry.connection.notify('lobbyAdmitted', {});
     } else {
