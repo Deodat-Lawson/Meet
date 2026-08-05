@@ -166,7 +166,9 @@ async function main(): Promise<void> {
     /* ------------------------------------------------------------- video */
 
     await check('camera video is published and received', async () => {
-      await alice.page.evaluate(() => (window as never as { __meet: { enableCamera(): Promise<void> } }).__meet.enableCamera());
+      await alice.page.evaluate(() => {
+        void (window as never as { __meet: { enableCamera(): Promise<void> } }).__meet.enableCamera();
+      });
       await waitFor(
         bob.page,
         "[...window.__meet.state.consumers.values()].some(c => c.source === 'webcam')",
@@ -189,9 +191,9 @@ async function main(): Promise<void> {
     /* ------------------------------------------------------- screen share */
 
     await check('screen share is published and received', async () => {
-      await alice.page.evaluate(() =>
-        (window as never as { __meet: { startScreenShare(withAudio?: boolean): Promise<void> } }).__meet.startScreenShare(false),
-      );
+      await alice.page.evaluate(() => {
+        void (window as never as { __meet: { startScreenShare(withAudio?: boolean): Promise<void> } }).__meet.startScreenShare(false);
+      });
       await waitFor(
         bob.page,
         "[...window.__meet.state.consumers.values()].some(c => c.source === 'screen')",
@@ -225,7 +227,9 @@ async function main(): Promise<void> {
     });
 
     await check('stopping the share tears down the remote consumer', async () => {
-      await alice.page.evaluate(() => (window as never as { __meet: { stopScreenShare(): Promise<void> } }).__meet.stopScreenShare());
+      await alice.page.evaluate(() => {
+        void (window as never as { __meet: { stopScreenShare(): Promise<void> } }).__meet.stopScreenShare();
+      });
       await waitFor(
         bob.page,
         "![...window.__meet.state.consumers.values()].some(c => c.source === 'screen')",
@@ -237,14 +241,18 @@ async function main(): Promise<void> {
     /* --------------------------------------------------------- mute/video */
 
     await check('muting the microphone propagates to other participants', async () => {
-      await alice.page.evaluate(() => (window as never as { __meet: { muteMic(): Promise<void> } }).__meet.muteMic());
+      await alice.page.evaluate(() => {
+        void (window as never as { __meet: { muteMic(): Promise<void> } }).__meet.muteMic();
+      });
       await waitFor(
         bob.page,
         '[...window.__meet.state.peers.values()].every(p => !p.audioEnabled)',
         10_000,
         'Bob to see Alice muted',
       );
-      await alice.page.evaluate(() => (window as never as { __meet: { unmuteMic(): Promise<void> } }).__meet.unmuteMic());
+      await alice.page.evaluate(() => {
+        void (window as never as { __meet: { unmuteMic(): Promise<void> } }).__meet.unmuteMic();
+      });
       await waitFor(
         bob.page,
         '[...window.__meet.state.peers.values()].some(p => p.audioEnabled)',
@@ -254,7 +262,9 @@ async function main(): Promise<void> {
     });
 
     await check('turning the camera off propagates and closes the consumer', async () => {
-      await alice.page.evaluate(() => (window as never as { __meet: { disableCamera(): Promise<void> } }).__meet.disableCamera());
+      await alice.page.evaluate(() => {
+        void (window as never as { __meet: { disableCamera(): Promise<void> } }).__meet.disableCamera();
+      });
       await waitFor(
         bob.page,
         "![...window.__meet.state.consumers.values()].some(c => c.source === 'webcam')",
@@ -266,9 +276,9 @@ async function main(): Promise<void> {
     /* --------------------------------------------------------------- chat */
 
     await check('chat messages are delivered', async () => {
-      await alice.page.evaluate(() =>
-        (window as never as { __meet: { sendChatMessage(t: string): Promise<void> } }).__meet.sendChatMessage('hello from the e2e suite'),
-      );
+      await alice.page.evaluate(() => {
+        void (window as never as { __meet: { sendChatMessage(t: string): Promise<void> } }).__meet.sendChatMessage('hello from the e2e suite');
+      });
       await waitFor(
         bob.page,
         "window.__meet.state.chat.some(m => m.text === 'hello from the e2e suite')",
@@ -278,7 +288,9 @@ async function main(): Promise<void> {
     });
 
     await check('raising a hand propagates', async () => {
-      await bob.page.evaluate(() => (window as never as { __meet: { raiseHand(r: boolean): Promise<void> } }).__meet.raiseHand(true));
+      await bob.page.evaluate(() => {
+        void (window as never as { __meet: { raiseHand(r: boolean): Promise<void> } }).__meet.raiseHand(true);
+      });
       await waitFor(
         alice.page,
         '[...window.__meet.state.peers.values()].some(p => p.handRaised)',
@@ -294,10 +306,9 @@ async function main(): Promise<void> {
       assert.equal(role, 'host', `expected Alice to be host, got ${role}`);
 
       const bobId = await bob.page.evaluate(() => (window as never as { __meet: { state: { self: { id: string } } } }).__meet.state.self.id);
-      await alice.page.evaluate(
-        (id) => (window as never as { __meet: { muteParticipant(p: string): Promise<unknown> } }).__meet.muteParticipant(id),
-        bobId,
-      );
+      await alice.page.evaluate((id) => {
+        void (window as never as { __meet: { muteParticipant(p: string): Promise<unknown> } }).__meet.muteParticipant(id);
+      }, bobId);
       await waitFor(bob.page, 'window.__meet.state.local.micMuted === true', 10_000, 'Bob to be muted by the host');
     });
 
