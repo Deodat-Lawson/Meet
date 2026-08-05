@@ -1,0 +1,13 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "types": ["jest"],
+    // The shared @meet/client-core engine is written against the standard Web
+    // media APIs, which react-native-webrtc installs globally at runtime via
+    // registerGlobals(). Including the DOM lib is what lets those shared sources
+    // typecheck inside the React Native project.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["**/node_modules", "**/Pods"]
+}

@@ -700,7 +700,7 @@ export class RoomClient extends Emitter<RoomEvents> {
   private async waitForRecvTransport(timeoutMs = 8000): Promise<Transport> {
     const deadline = Date.now() + timeoutMs;
     while (!this.recvTransport && Date.now() < deadline && !this.closed) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise<void>((resolve) => setTimeout(() => resolve(), 50));
     }
     if (!this.recvTransport) throw new Error('no receive transport');
     return this.recvTransport;

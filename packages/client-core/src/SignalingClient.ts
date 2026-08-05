@@ -130,24 +130,29 @@ export class SignalingClient extends Emitter<SignalingEvents> {
       };
 
       socket.onclose = (event) => {
+        // React Native's close event leaves both fields optional; 1006 is the
+        // standard "closed abnormally" code for a socket that died mid-flight.
+        const code = event?.code ?? 1006;
+        const reason = event?.reason ?? '';
+
         this.failPending(new ProtocolError(ErrorCodes.INTERNAL, 'connection closed'));
-        this.emit('closed', { code: event.code, reason: event.reason });
+        this.emit('closed', { code, reason });
 
         // 4000-4099 are deliberate server-side rejections (room closed, removed,
         // bad token). Retrying those just loops.
-        const permanent = event.code >= 4000 && event.code < 4100;
+        const permanent = code >= 4000 && code < 4100;
         if (this.intentionallyClosed || permanent) {
           this.setState('closed');
           if (!settled) {
             settled = true;
-            reject(new Error(event.reason || `connection closed (${event.code})`));
+            reject(new Error(reason || `connection closed (${code})`));
           }
           return;
         }
         this.scheduleReconnect();
         if (!settled) {
           settled = true;
-          reject(new Error(event.reason || 'connection closed before it opened'));
+          reject(new Error(reason || 'connection closed before it opened'));
         }
       };
     });
