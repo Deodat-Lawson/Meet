@@ -1,13 +1,20 @@
 import { create } from 'zustand';
 import { Platform } from 'react-native';
 import { RoomClient, type RoomState } from '@meet/client-core';
-import type { ProducerSource, Reaction } from '@meet/protocol';
+import type { MessageKey, ProducerSource, Reaction } from '@meet/protocol';
 import { rnMediaAdapter } from '../adapters/RNMediaAdapter';
 import { getServerConfig } from '../config';
+import { fromError, type TranslatableText } from '../i18n';
+
+/**
+ * What a toast says, not how it reads — translated at render time so text
+ * already on screen follows a language switch.
+ */
+export type ToastContent = TranslatableText;
 
 export interface Toast {
   id: string;
-  message: string;
+  content: ToastContent;
   tone: 'info' | 'error' | 'success';
 }
 
@@ -29,7 +36,7 @@ interface RoomStore {
   client: RoomClient | null;
   room: RoomState | null;
   status: 'idle' | 'joining' | 'joined' | 'lobby' | 'left' | 'error';
-  fatalError: string | null;
+  fatalError: ToastContent | null;
   toasts: Toast[];
   reactions: FloatingReaction[];
   panel: Panel;
@@ -41,7 +48,7 @@ interface RoomStore {
   leave(): void;
   setPanel(panel: Panel): void;
   pinPeer(peerId: string | null): void;
-  pushToast(message: string, tone?: Toast['tone']): void;
+  pushToast(content: ToastContent, tone?: Toast['tone']): void;
   dismissToast(id: string): void;
   toggleSpeakerphone(): Promise<void>;
   setRenderSize(peerId: string, source: ProducerSource, width: number): void;
@@ -99,19 +106,19 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     });
 
     client.on('moderatorAction', (action) => {
-      const messages = {
-        mute: `${action.byDisplayName} muted you`,
-        stopVideo: `${action.byDisplayName} stopped your video`,
-        stopShare: `${action.byDisplayName} stopped your screen share`,
-        unmuteRequest: `${action.byDisplayName} asked you to unmute`,
-      } as const;
-      get().pushToast(messages[action.action], 'info');
+      const keys = {
+        mute: 'moderator.muted',
+        stopVideo: 'moderator.stoppedVideo',
+        stopShare: 'moderator.stoppedShare',
+        unmuteRequest: 'moderator.unmuteRequest',
+      } as const satisfies Record<typeof action.action, MessageKey>;
+      get().pushToast({ key: keys[action.action], params: { name: action.byDisplayName } }, 'info');
     });
 
-    client.on('error', ({ message }) => get().pushToast(message, 'error'));
-    client.on('removed', ({ reason }) => set({ status: 'left', fatalError: reason }));
-    client.on('meetingEnded', ({ reason }) => set({ status: 'left', fatalError: reason }));
-    client.on('lobbyDenied', ({ reason }) => set({ status: 'left', fatalError: reason }));
+    client.on('error', ({ message }) => get().pushToast({ text: message }, 'error'));
+    client.on('removed', ({ reason }) => set({ status: 'left', fatalError: { text: reason } }));
+    client.on('meetingEnded', ({ reason }) => set({ status: 'left', fatalError: { text: reason } }));
+    client.on('lobbyDenied', ({ reason }) => set({ status: 'left', fatalError: { text: reason } }));
 
     set({ client });
 
@@ -120,8 +127,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       // Meetings default to loudspeaker; nobody holds a phone to their ear on a call.
       await rnMediaAdapter.setSpeakerphone(true).catch(() => undefined);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not join the meeting.';
-      set({ status: 'error', fatalError: message });
+      set({ status: 'error', fatalError: fromError(error, 'room.joinFailed') });
       throw error;
     }
   },
@@ -134,9 +140,9 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setPanel: (panel) => set({ panel, unreadChat: panel === 'chat' ? 0 : get().unreadChat }),
   pinPeer: (pinnedPeerId) => set({ pinnedPeerId }),
 
-  pushToast(message, tone = 'info') {
+  pushToast(content, tone = 'info') {
     const id = `toast-${toastCounter++}`;
-    set({ toasts: [...get().toasts, { id, message, tone }] });
+    set({ toasts: [...get().toasts, { id, content, tone }] });
     setTimeout(() => get().dismissToast(id), 5000);
   },
 

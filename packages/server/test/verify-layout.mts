@@ -28,6 +28,15 @@ const VIEWPORTS = [
 
 async function join(browser: Browser, roomId: string, name: string): Promise<Page> {
   const page = await browser.newPage();
+  // These assertions match on English button text; pin the language so the
+  // suite does not depend on the locale of whatever machine it runs on.
+  await page.evaluateOnNewDocument(() => {
+    try {
+      localStorage.setItem('meet.locale', 'en');
+    } catch {
+      /* storage may be unavailable */
+    }
+  });
   await page.setViewport({ width: 1280, height: 800 });
   await page.goto(`${ORIGIN}/room/${roomId}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#display-name', { timeout: 15000 });

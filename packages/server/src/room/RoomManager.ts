@@ -25,7 +25,7 @@ interface RoomRecord {
 export class RoomManager {
   private readonly rooms = new Map<string, RoomRecord>();
   /** Rooms explicitly scheduled ahead of time via the REST API. */
-  private readonly reservations = new Map<string, { name: string; passcode?: string; lobbyEnabled: boolean; createdAt: number }>();
+  private readonly reservations = new Map<string, { name?: string; passcode?: string; lobbyEnabled: boolean; createdAt: number }>();
   private creating = new Map<string, Promise<Room>>();
 
   async getOrCreate(roomId: string): Promise<Room> {
@@ -56,7 +56,7 @@ export class RoomManager {
 
     const room = await Room.create({
       id,
-      name: reservation?.name ?? `Meeting ${id}`,
+      name: reservation?.name,
       router,
       webRtcServer,
       releaseRouter: release,
@@ -102,14 +102,16 @@ export class RoomManager {
   /** Pre-creates a room id with settings, without spinning up a router yet. */
   reserve(options: { name?: string; passcode?: string; lobbyEnabled?: boolean } = {}): {
     roomId: string;
-    name: string;
+    name?: string;
   } {
     let roomId = generateRoomId();
     let attempts = 0;
     while ((this.rooms.has(roomId) || this.reservations.has(roomId)) && attempts++ < 20) {
       roomId = generateRoomId();
     }
-    const name = options.name?.trim().slice(0, 120) || `Meeting ${roomId}`;
+    // No fallback title: an unnamed meeting stays unnamed on the wire so each
+    // client can render "Meeting <id>" in the language its user reads.
+    const name = options.name?.trim().slice(0, 120) || undefined;
     this.reservations.set(roomId, {
       name,
       passcode: options.passcode,

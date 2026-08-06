@@ -1,5 +1,6 @@
 import type { ClientPlatform } from '@meet/protocol';
 import type { DeviceOption, DisplayMediaStreamOptions, MediaAdapter } from '@meet/client-core';
+import { t } from '../i18n';
 
 /**
  * Browser implementation of the platform media contract.
@@ -18,7 +19,7 @@ export class WebMediaAdapter implements MediaAdapter {
 
   async getUserMedia(constraints: MediaStreamConstraints): Promise<MediaStream> {
     if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('This browser cannot access your camera or microphone. Try Chrome, Edge, Firefox or Safari over HTTPS.');
+      throw new Error(t('device.unsupportedBrowser'));
     }
     try {
       return await navigator.mediaDevices.getUserMedia(constraints);
@@ -29,7 +30,7 @@ export class WebMediaAdapter implements MediaAdapter {
 
   async getDisplayMedia(options: DisplayMediaStreamOptions): Promise<MediaStream> {
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      throw new Error('Screen sharing is not supported in this browser.');
+      throw new Error(t('device.shareUnsupported'));
     }
     return navigator.mediaDevices.getDisplayMedia({
       video: options.video ?? true,
@@ -95,27 +96,34 @@ function labelForKind(kind: string): string {
   return 'Speaker';
 }
 
-/** Turns the browser's terse DOMException names into something a user can act on. */
+/**
+ * Turns the browser's terse DOMException names into something a user can act on.
+ *
+ * Translated here rather than at render time: by the time this reaches the UI it
+ * is an ordinary `Error`, indistinguishable from one the browser itself wrote.
+ */
 function describeGetUserMediaError(error: unknown, constraints: MediaStreamConstraints): string {
-  const wanted = constraints.video ? (constraints.audio ? 'camera and microphone' : 'camera') : 'microphone';
-  if (!(error instanceof Error)) return `Could not access your ${wanted}.`;
+  const device = t(
+    constraints.video ? (constraints.audio ? 'device.cameraAndMicrophone' : 'device.camera') : 'device.microphone',
+  );
+  if (!(error instanceof Error)) return t('device.accessFailed', { device });
 
   switch (error.name) {
     case 'NotAllowedError':
     case 'PermissionDeniedError':
-      return `Access to your ${wanted} was blocked. Allow it in your browser's site settings (the icon in the address bar) and try again.`;
+      return t('device.blocked', { device });
     case 'NotFoundError':
     case 'DevicesNotFoundError':
-      return `No ${wanted} found. Connect a device and try again.`;
+      return t('device.notFound', { device });
     case 'NotReadableError':
     case 'TrackStartError':
-      return `Your ${wanted} is already in use by another app. Close it and try again.`;
+      return t('device.inUse', { device });
     case 'OverconstrainedError':
-      return `Your ${wanted} does not support the requested quality. Try a lower video quality in settings.`;
+      return t('device.overconstrained', { device });
     case 'SecurityError':
-      return 'Media access requires a secure (HTTPS) connection.';
+      return t('device.insecure');
     default:
-      return `Could not access your ${wanted}: ${error.message}`;
+      return t('device.accessFailedDetail', { device, detail: error.message });
   }
 }
 

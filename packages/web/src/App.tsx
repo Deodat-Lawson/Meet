@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useRoomStore } from './store/roomStore';
+import { useRoomStore, type ToastContent } from './store/roomStore';
+import { useT, useTranslatable } from './i18n';
 import { Home } from './pages/Home';
 import { PreJoin } from './pages/PreJoin';
 import { RoomPage } from './pages/RoomPage';
 import { CloseIcon } from './components/icons';
+import { LanguageToggle } from './components/LanguageToggle';
 
 export function App() {
   const [path, setPath] = useState(location.pathname);
   const { status, fatalError, toasts, dismissToast, leave } = useRoomStore();
+  const t = useT();
+  const text = useTranslatable();
 
   const navigate = useCallback((next: string) => {
     history.pushState({}, '', next);
@@ -46,8 +50,8 @@ export function App() {
       <div className="toasts">
         {toasts.map((toast) => (
           <div key={toast.id} className={`toast ${toast.tone}`} role="status">
-            <span style={{ flex: 1 }}>{toast.message}</span>
-            <button className="icon-btn" onClick={() => dismissToast(toast.id)} aria-label="Dismiss">
+            <span style={{ flex: 1 }}>{text(toast.content)}</span>
+            <button className="icon-btn" onClick={() => dismissToast(toast.id)} aria-label={t('common.dismiss')}>
               <CloseIcon size={15} />
             </button>
           </div>
@@ -63,21 +67,27 @@ function MeetingEnded({
   onRejoin,
   onHome,
 }: {
-  reason: string | null;
+  reason: ToastContent | null;
   roomId: string;
   onRejoin: () => void;
   onHome: () => void;
 }) {
+  const t = useT();
+  const text = useTranslatable();
+
   return (
     <div className="center-page">
       <div className="card" style={{ textAlign: 'center' }}>
-        <h1>You've left the meeting</h1>
-        <p className="subtitle">{reason ?? 'Thanks for joining.'}</p>
+        <div className="card-topbar" style={{ justifyContent: 'flex-end' }}>
+          <LanguageToggle />
+        </div>
+        <h1>{t('room.leftTitle')}</h1>
+        <p className="subtitle">{reason ? text(reason) : t('room.leftSubtitle')}</p>
         <button className="btn btn-primary btn-block" onClick={onRejoin}>
-          Rejoin {roomId}
+          {t('room.rejoin', { id: roomId })}
         </button>
         <button className="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={onHome}>
-          Back to home
+          {t('room.backHome')}
         </button>
       </div>
     </div>

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { DeviceOption } from '@meet/client-core';
 import { webMediaAdapter } from '../adapters/WebMediaAdapter';
-import { useRoomStore } from '../store/roomStore';
+import { useRoomStore, toastFromError } from '../store/roomStore';
+import { useT, useTranslatable, type TranslatableText } from '../i18n';
 import { CopyIcon, CheckIcon, LockIcon, MicIcon, MicOffIcon, VideoIcon, VideoOffIcon } from '../components/icons';
+import { LanguageToggle } from '../components/LanguageToggle';
 
 interface PreJoinProps {
   roomId: string;
@@ -18,6 +20,8 @@ interface PreJoinProps {
  */
 export function PreJoin({ roomId, onCancel }: PreJoinProps) {
   const join = useRoomStore((s) => s.join);
+  const t = useT();
+  const text = useTranslatable();
   const [displayName, setDisplayName] = useState(() => localStorage.getItem('meet.displayName') ?? '');
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
@@ -25,8 +29,8 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
   const [micId, setMicId] = useState<string>('');
   const [cameraId, setCameraId] = useState<string>('');
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
-  const [permissionError, setPermissionError] = useState<string | null>(null);
-  const [joinError, setJoinError] = useState<string | null>(null);
+  const [permissionError, setPermissionError] = useState<TranslatableText | null>(null);
+  const [joinError, setJoinError] = useState<TranslatableText | null>(null);
   const [needsPasscode, setNeedsPasscode] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [roomName, setRoomName] = useState<string | null>(null);
@@ -77,7 +81,7 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
         // Labels only become readable after permission is granted.
         setDevices(await webMediaAdapter.enumerateDevices());
       } catch (error) {
-        if (!cancelled) setPermissionError(error instanceof Error ? error.message : 'Could not access your devices.');
+        if (!cancelled) setPermissionError(toastFromError(error, 'prejoin.deviceFailed'));
       }
     };
 
@@ -107,7 +111,7 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
   const handleJoin = async () => {
     const name = displayName.trim();
     if (!name) {
-      setJoinError('Please enter your name.');
+      setJoinError({ key: 'prejoin.enterName' });
       return;
     }
     setJoining(true);
@@ -124,7 +128,9 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
 
       if (!tokenResponse.ok) {
         const body = (await tokenResponse.json().catch(() => ({}))) as { message?: string };
-        throw new Error(body.message ?? 'Could not join this meeting.');
+        setJoinError(body.message ? { text: body.message } : { key: 'prejoin.joinFailed' });
+        setJoining(false);
+        return;
       }
 
       const { token } = (await tokenResponse.json()) as { token: string };
@@ -144,7 +150,7 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
         cameraDeviceId: cameraId || undefined,
       });
     } catch (error) {
-      setJoinError(error instanceof Error ? error.message : 'Could not join this meeting.');
+      setJoinError(toastFromError(error, 'prejoin.joinFailed'));
       setJoining(false);
     }
   };
@@ -171,7 +177,7 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
           ) : (
             <div className="preview-placeholder">
               <VideoOffIcon size={30} />
-              {permissionError ? 'Camera unavailable' : 'Camera is off'}
+              {permissionError ? t('prejoin.cameraUnavailable') : t('prejoin.cameraOff')}
             </div>
           )}
 
@@ -180,7 +186,8 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
               className={`btn${micEnabled ? '' : ' btn-danger'}`}
               onClick={() => setMicEnabled((on) => !on)}
               aria-pressed={micEnabled}
-              title={micEnabled ? 'Turn off microphone' : 'Turn on microphone'}
+              aria-label={micEnabled ? t('prejoin.turnOffMic') : t('prejoin.turnOnMic')}
+              title={micEnabled ? t('prejoin.turnOffMic') : t('prejoin.turnOnMic')}
             >
               {micEnabled ? <MicIcon size={18} /> : <MicOffIcon size={18} />}
             </button>
@@ -188,7 +195,8 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
               className={`btn${cameraEnabled ? '' : ' btn-danger'}`}
               onClick={() => setCameraEnabled((on) => !on)}
               aria-pressed={cameraEnabled}
-              title={cameraEnabled ? 'Turn off camera' : 'Turn on camera'}
+              aria-label={cameraEnabled ? t('prejoin.turnOffCamera') : t('prejoin.turnOnCamera')}
+              title={cameraEnabled ? t('prejoin.turnOffCamera') : t('prejoin.turnOnCamera')}
             >
               {cameraEnabled ? <VideoIcon size={18} /> : <VideoOffIcon size={18} />}
             </button>
@@ -196,15 +204,19 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
         </div>
 
         <div className="card" style={{ width: '100%' }}>
-          <h1>Ready to join?</h1>
-          <p className="subtitle">{roomName ?? `Meeting ${roomId}`}</p>
+          <div className="card-topbar" style={{ justifyContent: 'flex-end', marginBottom: 12 }}>
+            <LanguageToggle />
+          </div>
+
+          <h1>{t('prejoin.title')}</h1>
+          <p className="subtitle">{roomName ?? t('prejoin.meeting', { id: roomId })}</p>
 
           <div className="field">
-            <label htmlFor="display-name">Your name</label>
+            <label htmlFor="display-name">{t('prejoin.yourName')}</label>
             <input
               id="display-name"
               className="input"
-              placeholder="Alex Rivera"
+              placeholder={t('prejoin.namePlaceholder')}
               value={displayName}
               maxLength={64}
               autoFocus
@@ -216,7 +228,7 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
           {needsPasscode && (
             <div className="field">
               <label htmlFor="passcode">
-                <LockIcon size={12} /> Meeting passcode
+                <LockIcon size={12} /> {t('prejoin.passcode')}
               </label>
               <input
                 id="passcode"
@@ -231,9 +243,9 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
 
           {mics.length > 1 && (
             <div className="field">
-              <label htmlFor="prejoin-mic">Microphone</label>
+              <label htmlFor="prejoin-mic">{t('prejoin.microphone')}</label>
               <select id="prejoin-mic" className="select" value={micId} onChange={(event) => setMicId(event.target.value)}>
-                <option value="">System default</option>
+                <option value="">{t('common.systemDefault')}</option>
                 {mics.map((device) => (
                   <option key={device.deviceId} value={device.deviceId}>
                     {device.label}
@@ -245,9 +257,9 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
 
           {cameras.length > 1 && (
             <div className="field">
-              <label htmlFor="prejoin-cam">Camera</label>
+              <label htmlFor="prejoin-cam">{t('prejoin.camera')}</label>
               <select id="prejoin-cam" className="select" value={cameraId} onChange={(event) => setCameraId(event.target.value)}>
-                <option value="">System default</option>
+                <option value="">{t('common.systemDefault')}</option>
                 {cameras.map((device) => (
                   <option key={device.deviceId} value={device.deviceId}>
                     {device.label}
@@ -258,21 +270,21 @@ export function PreJoin({ roomId, onCancel }: PreJoinProps) {
           )}
 
           <button className="btn btn-primary btn-block" onClick={() => void handleJoin()} disabled={joining} style={{ marginTop: 6 }}>
-            {joining ? <span className="spinner" /> : 'Join now'}
+            {joining ? <span className="spinner" /> : t('prejoin.joinNow')}
           </button>
 
           <button className="btn btn-ghost btn-block" style={{ marginTop: 8 }} onClick={onCancel}>
-            Cancel
+            {t('common.cancel')}
           </button>
 
-          {permissionError && <p className="error-text">{permissionError}</p>}
-          {joinError && <p className="error-text">{joinError}</p>}
+          {permissionError && <p className="error-text">{text(permissionError)}</p>}
+          {joinError && <p className="error-text">{text(joinError)}</p>}
 
           <div className="copy-row" style={{ marginTop: 16 }}>
             <code>{`${location.host}/room/${roomId}`}</code>
             <button className="btn btn-sm" onClick={() => void copyLink()}>
               {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? t('common.copied') : t('common.copy')}
             </button>
           </div>
         </div>

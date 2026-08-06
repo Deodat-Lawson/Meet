@@ -20,6 +20,7 @@ import {
   VideoIcon,
   VideoOffIcon,
 } from './Icons';
+import { fromError, useT } from '../i18n';
 import { useRoomStore } from '../store/roomStore';
 
 const REACTIONS = ['👍', '👏', '❤️', '😂', '😮', '🎉', '🤔', '👋'];
@@ -34,6 +35,7 @@ export function ControlBar({
   onLeave: () => void;
 }) {
   const { panel, setPanel, pushToast, unreadChat, speakerphone, toggleSpeakerphone } = useRoomStore();
+  const t = useT();
   const [moreOpen, setMoreOpen] = useState(false);
   const [reactionsOpen, setReactionsOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -50,8 +52,10 @@ export function ControlBar({
     try {
       await action();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Something went wrong.';
-      if (!/cancelled/i.test(message)) pushToast(message, 'error');
+      // The "cancelled" check reads the browser/native error verbatim, so it
+      // stays language-independent regardless of what gets shown.
+      const raw = error instanceof Error ? error.message : '';
+      if (!/cancelled/i.test(raw)) pushToast(fromError(error, 'common.somethingWentWrong'), 'error');
     } finally {
       setBusy(null);
     }
@@ -61,19 +65,19 @@ export function ControlBar({
     <>
       <View style={styles.bar}>
         <Control
-          label={micOn ? 'Mute' : 'Unmute'}
+          label={micOn ? t('controls.mute') : t('controls.unmute')}
           off={!micOn}
           icon={micOn ? <MicIcon size={21} /> : <MicOffIcon size={21} color="#fff" />}
           onPress={() => run('mic', () => client.toggleMic())}
         />
         <Control
-          label={local.cameraEnabled ? 'Stop' : 'Start'}
+          label={local.cameraEnabled ? t('mobile.stop') : t('mobile.start')}
           off={!local.cameraEnabled}
           icon={local.cameraEnabled ? <VideoIcon size={21} /> : <VideoOffIcon size={21} color="#fff" />}
           onPress={() => run('cam', () => client.toggleCamera())}
         />
         <Control
-          label={local.screenSharing ? 'Stop' : 'Share'}
+          label={local.screenSharing ? t('mobile.stop') : t('controls.share')}
           accent={local.screenSharing}
           disabled={someoneElseSharing && !local.screenSharing}
           icon={
@@ -92,22 +96,22 @@ export function ControlBar({
           }
         />
         <Control
-          label="People"
+          label={t('mobile.people')}
           badge={participantCount}
           active={panel === 'participants'}
           icon={<UsersIcon size={21} />}
           onPress={() => setPanel(panel === 'participants' ? 'none' : 'participants')}
         />
         <Control
-          label="Chat"
+          label={t('controls.chat')}
           badge={unreadChat > 0 ? unreadChat : undefined}
           active={panel === 'chat'}
           icon={<ChatIcon size={21} />}
           onPress={() => setPanel(panel === 'chat' ? 'none' : 'chat')}
         />
-        <Control label="More" icon={<MoreIcon size={21} />} onPress={() => setMoreOpen(true)} />
+        <Control label={t('controls.more')} icon={<MoreIcon size={21} />} onPress={() => setMoreOpen(true)} />
 
-        <TouchableOpacity style={styles.leave} onPress={onLeave} accessibilityLabel="Leave meeting">
+        <TouchableOpacity style={styles.leave} onPress={onLeave} accessibilityLabel={t('controls.leaveMeeting')}>
           <PhoneOffIcon size={20} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -120,7 +124,7 @@ export function ControlBar({
 
             <SheetItem
               icon={<CameraSwitchIcon size={20} />}
-              label="Switch camera"
+              label={t('mobile.switchCamera')}
               disabled={!local.cameraEnabled}
               onPress={() => {
                 setMoreOpen(false);
@@ -129,12 +133,12 @@ export function ControlBar({
             />
             <SheetItem
               icon={speakerphone ? <SpeakerIcon size={20} /> : <SpeakerOffIcon size={20} />}
-              label={speakerphone ? 'Speaker on' : 'Speaker off'}
+              label={speakerphone ? t('mobile.speakerOn') : t('mobile.speakerOff')}
               onPress={() => void toggleSpeakerphone()}
             />
             <SheetItem
               icon={<HandIcon size={20} color={room.self?.handRaised ? colors.accent : colors.text} />}
-              label={room.self?.handRaised ? 'Lower hand' : 'Raise hand'}
+              label={room.self?.handRaised ? t('controls.lowerHand') : t('controls.raiseHand')}
               onPress={() => {
                 setMoreOpen(false);
                 void run('hand', () => client.raiseHand(!room.self?.handRaised));
@@ -142,7 +146,7 @@ export function ControlBar({
             />
             <SheetItem
               icon={<SmileIcon size={20} />}
-              label="Send a reaction"
+              label={t('mobile.sendAReaction')}
               onPress={() => {
                 setMoreOpen(false);
                 setReactionsOpen(true);
@@ -151,10 +155,10 @@ export function ControlBar({
 
             {isModerator && (
               <>
-                <Text style={styles.sheetSection}>Host controls</Text>
+                <Text style={styles.sheetSection}>{t('mobile.hostControls')}</Text>
                 <SheetItem
                   icon={<MicOffIcon size={20} />}
-                  label="Mute everyone"
+                  label={t('controls.muteEveryone')}
                   onPress={() => {
                     setMoreOpen(false);
                     void run('muteAll', () => client.muteAll(true));
@@ -162,7 +166,7 @@ export function ControlBar({
                 />
                 <SheetItem
                   icon={<RecordIcon size={20} />}
-                  label={room.room?.recording ? 'Stop recording' : 'Record meeting'}
+                  label={room.room?.recording ? t('controls.stopRecording') : t('controls.recordMeeting')}
                   onPress={() => {
                     setMoreOpen(false);
                     void run('record', () => (room.room?.recording ? client.stopRecording() : client.startRecording()));
@@ -170,13 +174,17 @@ export function ControlBar({
                 />
                 <SheetItem
                   icon={<PhoneOffIcon size={20} color={colors.danger} />}
-                  label="End meeting for all"
+                  label={t('controls.endForAll')}
                   danger
                   onPress={() => {
                     setMoreOpen(false);
-                    Alert.alert('End meeting', 'This ends the meeting for everyone.', [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'End', style: 'destructive', onPress: () => void run('end', () => client.endMeeting()) },
+                    Alert.alert(t('mobile.endMeeting'), t('mobile.endMeetingBody'), [
+                      { text: t('common.cancel'), style: 'cancel' },
+                      {
+                        text: t('mobile.end'),
+                        style: 'destructive',
+                        onPress: () => void run('end', () => client.endMeeting()),
+                      },
                     ]);
                   }}
                 />
@@ -194,6 +202,7 @@ export function ControlBar({
               <TouchableOpacity
                 key={emoji}
                 style={styles.reactionButton}
+                accessibilityLabel={t('controls.sendReaction', { emoji })}
                 onPress={() => {
                   void client.sendReaction(emoji);
                   setReactionsOpen(false);

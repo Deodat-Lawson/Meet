@@ -55,8 +55,14 @@ export interface PeerInfo {
 
 export interface RoomInfo {
   id: string;
-  /** Human friendly name, e.g. "Weekly standup". */
-  name: string;
+  /**
+   * Human friendly name, e.g. "Weekly standup".
+   *
+   * Absent when the organiser did not name the meeting. The server does not
+   * invent one: a default title is a presentation concern, and only the client
+   * knows which language to write it in.
+   */
+  name?: string;
   locked: boolean;
   /** Lobby (waiting-room) enabled. */
   lobbyEnabled: boolean;

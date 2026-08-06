@@ -7,10 +7,13 @@ import { VideoTile } from '../components/VideoTile';
 import { ControlBar } from '../components/ControlBar';
 import { ParticipantsSheet } from '../components/ParticipantsSheet';
 import { ChatSheet } from '../components/ChatSheet';
+import { LanguageToggle } from '../components/LanguageToggle';
+import { useT } from '../i18n';
 import { useRoomStore } from '../store/roomStore';
 
 export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: () => void }) {
   const { client, room, panel, reactions, leave } = useRoomStore();
+  const t = useT();
   const { width, height } = useWindowDimensions();
   const [elapsed, setElapsed] = useState(0);
 
@@ -32,8 +35,9 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
   if (room.inLobby) {
     return (
       <View style={styles.centered}>
-        <Text style={styles.lobbyTitle}>Waiting to be admitted</Text>
-        <Text style={styles.lobbyText}>The host has been notified. You'll join automatically once they let you in.</Text>
+        <LanguageToggle style={styles.lobbyLanguage} />
+        <Text style={styles.lobbyTitle}>{t('room.waitingTitle')}</Text>
+        <Text style={styles.lobbyText}>{t('room.waitingText')}</Text>
         <TouchableOpacity
           style={styles.ghostButton}
           onPress={() => {
@@ -41,7 +45,7 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
             onLeave();
           }}
         >
-          <Text style={styles.ghostButtonText}>Cancel</Text>
+          <Text style={styles.ghostButtonText}>{t('common.cancel')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -68,18 +72,20 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
     <View style={styles.root}>
       <View style={styles.header}>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {room.room?.name ?? `Meeting ${roomId}`}
+          {room.room?.name ?? t('room.meeting', { id: roomId })}
         </Text>
         <Text style={styles.headerMeta}>{formatDuration(elapsed)}</Text>
         {room.room?.recording && (
           <View style={styles.recBadge}>
             <View style={styles.recDot} />
-            <Text style={styles.recText}>REC</Text>
+            <Text style={styles.recText}>{t('mobile.rec')}</Text>
           </View>
         )}
         {(room.connection === 'reconnecting' || room.connection === 'connecting') && (
-          <Text style={styles.reconnecting}>Reconnecting…</Text>
+          <Text style={styles.reconnecting}>{t('room.reconnecting')}</Text>
         )}
+        <View style={styles.flex} />
+        <LanguageToggle compact />
       </View>
 
       <View style={styles.stage}>
@@ -87,7 +93,9 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
           <View style={styles.flex}>
             <View style={styles.shareBanner}>
               <Text style={styles.shareBannerText}>
-                {isSharingLocally ? 'You are sharing your screen' : `${sharingPeer.displayName} is sharing`}
+                {isSharingLocally
+                  ? t('room.sharingLocal')
+                  : t('mobile.sharingShort', { name: sharingPeer.displayName })}
               </Text>
             </View>
             <View style={styles.shareStage}>
@@ -139,10 +147,10 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
         client={client}
         room={room}
         onLeave={() => {
-          Alert.alert('Leave meeting', 'Are you sure you want to leave?', [
-            { text: 'Cancel', style: 'cancel' },
+          Alert.alert(t('mobile.leaveConfirmTitle'), t('mobile.leaveConfirmBody'), [
+            { text: t('common.cancel'), style: 'cancel' },
             {
-              text: 'Leave',
+              text: t('controls.leave'),
               style: 'destructive',
               onPress: () => {
                 leave();
@@ -202,6 +210,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.md,
   },
+  lobbyLanguage: { alignSelf: 'center', marginBottom: spacing.md },
   lobbyTitle: { color: colors.text, fontSize: 20, fontWeight: '700' },
   lobbyText: { color: colors.textDim, fontSize: 14, textAlign: 'center', lineHeight: 20 },
   ghostButton: {

@@ -75,6 +75,13 @@ jobs:
         env:
           E2E_WEB_ORIGIN: http://localhost:5173
 
+      # Walks every screen in both languages at a desktop and a phone viewport,
+      # asserting that nothing is left untranslated once the switch is thrown.
+      - name: Language switching
+        run: npm run test:e2e:i18n -w @meet/server
+        env:
+          E2E_WEB_ORIGIN: http://localhost:5173
+
       - name: Server log on failure
         if: failure()
         run: tail -100 /tmp/server.log /tmp/web.log

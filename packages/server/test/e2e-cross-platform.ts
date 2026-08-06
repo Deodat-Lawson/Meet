@@ -49,6 +49,15 @@ async function main(): Promise<void> {
   });
 
   const page = await browser.newPage();
+  // These assertions match on English button text; pin the language so the
+  // suite does not depend on the locale of whatever machine it runs on.
+  await page.evaluateOnNewDocument(() => {
+    try {
+      localStorage.setItem('meet.locale', 'en');
+    } catch {
+      /* storage may be unavailable */
+    }
+  });
   page.on('pageerror', (error) => console.error('[web] page error:', error.message));
 
   try {

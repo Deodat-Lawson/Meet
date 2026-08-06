@@ -21,7 +21,7 @@ import { MeetingRecorder } from '../recording/MeetingRecorder.js';
 
 export interface RoomOptions {
   id: string;
-  name: string;
+  name?: string;
   router: ms.Router;
   webRtcServer?: ms.WebRtcServer;
   releaseRouter: () => void;
@@ -57,7 +57,7 @@ export class Room extends EventEmitter {
   private recorder?: MeetingRecorder;
 
   private settings: {
-    name: string;
+    name?: string;
     locked: boolean;
     lobbyEnabled: boolean;
     allowUnmute: boolean;

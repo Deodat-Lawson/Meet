@@ -3,6 +3,7 @@ import type { PeerInfo } from '@meet/protocol';
 import type { RoomClient, RoomState } from '@meet/client-core';
 import { VideoTile } from './VideoTile';
 import { useRoomStore } from '../store/roomStore';
+import { useT } from '../i18n';
 import { ScreenShareIcon } from './icons';
 
 interface StageProps {
@@ -215,6 +216,7 @@ function ScreenStage({
   onSizeChange: (width: number) => void;
   onVisibilityChange: (visible: boolean) => void;
 }) {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -241,7 +243,7 @@ function ScreenStage({
     <div className="share-stage" ref={containerRef}>
       <div className="share-banner">
         <ScreenShareIcon size={15} />
-        {isLocal ? 'You are sharing your screen' : `${peer.displayName} is sharing their screen`}
+        {isLocal ? t('room.sharingLocal') : t('room.sharingRemote', { name: peer.displayName })}
       </div>
       {/* Muted: screen audio is played by AudioRenderer so it survives layout changes. */}
       <video ref={videoRef} autoPlay playsInline muted />

@@ -67,6 +67,18 @@ reconnection or layer selection land in both apps at once.
 - Server-side recording (one WebM per participant plus a generated `compose.sh`)
 - Network quality indicators and automatic ICE restart on a network change
 
+**Languages**
+- English and Simplified Chinese, switchable from a control on every screen —
+  home, pre-join, waiting room, the meeting header and the settings panel
+- Switching is live: the whole UI re-renders in place, including text already on
+  screen such as a toast or a "meeting ended" reason. No reload, no lost meeting
+- The choice is remembered, and a first-time visitor gets their browser's (or
+  phone's) language
+- Both clients read one dictionary in `packages/protocol/src/i18n.ts`, so a string
+  cannot exist in the web app and go missing on Android
+- The server answers in English — it has no idea who is reading — and each client
+  maps those messages to the user's language on the way to the screen
+
 **Operational**
 - One mediasoup worker per core, rooms assigned to the least loaded worker
 - One UDP+TCP port per worker via `WebRtcServer` — trivial firewall rules
@@ -207,6 +219,7 @@ instances.
 npm run test -w @meet/server            # unit tests
 npm run test:e2e -w @meet/server        # full meeting flow, needs the dev servers running
 npm run test:e2e:lobby -w @meet/server  # waiting room: queue, admit, deny
+npm run test:e2e:i18n -w @meet/server   # every screen in both languages, desktop and phone
 npm run test:layout -w @meet/server     # tile layout sweep across sizes and peer counts
 ```
 
@@ -219,6 +232,16 @@ The lobby suite covers a path that is easy to get subtly wrong: the client re-ru
 the join handshake after being admitted, so a naive lobby check bounces the guest
 straight back into the queue. Reverting that guard turns the suite red (3/6), which
 is the point of having it.
+
+The language suite is the one that answers "is *everything* translated". It walks
+every screen at 1280×800 and at 390×844, throws the switch in both directions, and
+reads back the rendered text plus the `title`, `aria-label` and `placeholder`
+attributes — so a string that was missed shows up as an English phrase still on
+screen. It also checks the header still fits a phone and that the page never
+scrolls sideways. Two `node --test` cases back it from the other direction: one
+asserts the dictionaries are key-for-key identical with matching placeholders and
+no English left in the Chinese column, the other scans the web and React Native
+sources for hard-coded user-facing strings and for server messages with no mapping.
 
 `test:e2e:cross` verifies a browser against a live Android client (start the app,
 join a meeting, then pass its code as `E2E_ROOM`), which is what catches codec or

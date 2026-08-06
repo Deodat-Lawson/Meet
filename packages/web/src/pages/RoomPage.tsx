@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { formatDuration } from '@meet/protocol';
 import { useRoomStore } from '../store/roomStore';
+import { useT } from '../i18n';
 import { Stage } from '../components/Stage';
 import { ControlBar } from '../components/ControlBar';
 import { ParticipantsPanel } from '../components/ParticipantsPanel';
 import { ChatPanel } from '../components/ChatPanel';
 import { SettingsPanel } from '../components/SettingsPanel';
 import { AudioRenderer } from '../components/AudioRenderer';
+import { LanguageToggle } from '../components/LanguageToggle';
 import { CheckIcon, CopyIcon, LockIcon } from '../components/icons';
 
 export function RoomPage({ roomId, onLeave }: { roomId: string; onLeave: () => void }) {
   const { client, room, panel, reactions, leave } = useRoomStore();
+  const t = useT();
   const [elapsed, setElapsed] = useState(0);
   const [copied, setCopied] = useState(false);
 
@@ -36,9 +39,12 @@ export function RoomPage({ roomId, onLeave }: { roomId: string; onLeave: () => v
     return (
       <div className="center-page">
         <div className="card" style={{ textAlign: 'center' }}>
+          <div className="card-topbar" style={{ justifyContent: 'flex-end' }}>
+            <LanguageToggle />
+          </div>
           <div className="spinner" style={{ margin: '0 auto 16px' }} />
-          <h1>Waiting to be admitted</h1>
-          <p className="subtitle">The host has been notified. You'll join automatically once they let you in.</p>
+          <h1>{t('room.waitingTitle')}</h1>
+          <p className="subtitle">{t('room.waitingText')}</p>
           <button
             className="btn btn-ghost btn-block"
             onClick={() => {
@@ -46,7 +52,7 @@ export function RoomPage({ roomId, onLeave }: { roomId: string; onLeave: () => v
               onLeave();
             }}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
       </div>
@@ -69,30 +75,37 @@ export function RoomPage({ roomId, onLeave }: { roomId: string; onLeave: () => v
   return (
     <div className="room">
       <header className="room-header">
-        <span className="room-title">{room.room?.name ?? `Meeting ${roomId}`}</span>
+        <span className="room-title">{room.room?.name ?? t('room.meeting', { id: roomId })}</span>
         <span className="room-meta">{formatDuration(elapsed)}</span>
 
         {room.room?.locked && (
-          <span className="badge" title="Meeting is locked">
-            <LockIcon size={12} /> Locked
+          <span className="badge" title={t('room.lockedTitle')}>
+            <LockIcon size={12} /> {t('room.locked')}
           </span>
         )}
         {room.room?.recording && (
           <span className="badge badge-rec">
-            <span className="dot" /> Recording
+            <span className="dot" /> {t('room.recording')}
           </span>
         )}
         {reconnecting && (
           <span className="badge" style={{ color: 'var(--warn)' }}>
-            Reconnecting…
+            {t('room.reconnecting')}
           </span>
         )}
 
         <span className="spacer" />
 
-        <button className="btn btn-sm" onClick={() => void copyLink()} title="Copy the meeting link">
+        <LanguageToggle compact />
+
+        <button
+          className="btn btn-sm"
+          onClick={() => void copyLink()}
+          title={t('room.copyLinkTitle')}
+          aria-label={t('room.copyLinkTitle')}
+        >
           {copied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-          {copied ? 'Copied' : 'Copy link'}
+          {copied ? t('common.copied') : t('room.copyLink')}
         </button>
       </header>
 

@@ -7,10 +7,14 @@ import { PreJoinScreen } from './src/screens/PreJoinScreen';
 import { MeetingScreen } from './src/screens/MeetingScreen';
 import { useRoomStore } from './src/store/roomStore';
 import { CloseIcon } from './src/components/Icons';
+import { LanguageToggle } from './src/components/LanguageToggle';
+import { useT, useTranslatable } from './src/i18n';
 
 export default function App() {
   const [roomId, setRoomId] = useState<string | null>(null);
   const { status, fatalError, toasts, dismissToast, leave } = useRoomStore();
+  const t = useT();
+  const text = useTranslatable();
 
   const goHome = useCallback(() => {
     leave();
@@ -43,16 +47,17 @@ export default function App() {
   } else if (status === 'left' || status === 'error') {
     content = (
       <View style={styles.ended}>
-        <Text style={styles.endedTitle}>You've left the meeting</Text>
-        <Text style={styles.endedText}>{fatalError ?? 'Thanks for joining.'}</Text>
+        <LanguageToggle style={styles.endedLanguage} />
+        <Text style={styles.endedTitle}>{t('room.leftTitle')}</Text>
+        <Text style={styles.endedText}>{fatalError ? text(fatalError) : t('room.leftSubtitle')}</Text>
         <TouchableOpacity
           style={[styles.button, styles.buttonPrimary]}
           onPress={() => useRoomStore.setState({ status: 'idle', fatalError: null })}
         >
-          <Text style={styles.buttonPrimaryText}>Rejoin</Text>
+          <Text style={styles.buttonPrimaryText}>{t('mobile.rejoin')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={goHome}>
-          <Text style={styles.buttonText}>Back to home</Text>
+          <Text style={styles.buttonText}>{t('room.backHome')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -76,8 +81,8 @@ export default function App() {
                 toast.tone === 'success' && styles.toastSuccess,
               ]}
             >
-              <Text style={styles.toastText}>{toast.message}</Text>
-              <TouchableOpacity onPress={() => dismissToast(toast.id)} accessibilityLabel="Dismiss">
+              <Text style={styles.toastText}>{text(toast.content)}</Text>
+              <TouchableOpacity onPress={() => dismissToast(toast.id)} accessibilityLabel={t('common.dismiss')}>
                 <CloseIcon size={16} color={colors.textDim} />
               </TouchableOpacity>
             </View>
@@ -97,6 +102,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: spacing.sm,
   },
+  endedLanguage: { alignSelf: 'center', marginBottom: spacing.lg },
   endedTitle: { color: colors.text, fontSize: 22, fontWeight: '700' },
   endedText: { color: colors.textDim, fontSize: 14, textAlign: 'center', marginBottom: spacing.lg },
   button: {

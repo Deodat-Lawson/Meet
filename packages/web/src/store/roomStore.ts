@@ -1,12 +1,31 @@
 import { create } from 'zustand';
 import { RoomClient, type RoomState } from '@meet/client-core';
-import type { ProducerSource, Reaction } from '@meet/protocol';
+import type { MessageKey, ProducerSource, Reaction } from '@meet/protocol';
 import { webMediaAdapter } from '../adapters/WebMediaAdapter';
+import type { TranslatableText } from '../i18n';
+
+/**
+ * What a toast says, not how it reads.
+ *
+ * Storing the key (or the raw server text) instead of a finished sentence is
+ * what lets a toast that is already on screen follow a language switch.
+ */
+export type ToastContent = TranslatableText;
 
 export interface Toast {
   id: string;
-  message: string;
+  content: ToastContent;
   tone: 'info' | 'error' | 'success';
+}
+
+/**
+ * An error is shown verbatim when it carries a message — `translateServerText`
+ * maps the ones we recognise at render time — and falls back to `key` when it
+ * does not.
+ */
+export function toastFromError(error: unknown, fallback: MessageKey): ToastContent {
+  const message = error instanceof Error ? error.message.trim() : '';
+  return message ? { text: message } : { key: fallback };
 }
 
 export interface FloatingReaction extends Reaction {
@@ -30,7 +49,8 @@ interface RoomStore {
   client: RoomClient | null;
   room: RoomState | null;
   status: 'idle' | 'joining' | 'joined' | 'lobby' | 'left' | 'error';
-  fatalError: string | null;
+  /** Why the meeting ended, in the same translatable shape as a toast. */
+  fatalError: ToastContent | null;
   toasts: Toast[];
   reactions: FloatingReaction[];
   layout: Layout;
@@ -43,7 +63,7 @@ interface RoomStore {
   setLayout(layout: Layout): void;
   setPanel(panel: SidePanel): void;
   pinPeer(peerId: string | null): void;
-  pushToast(message: string, tone?: Toast['tone']): void;
+  pushToast(content: ToastContent, tone?: Toast['tone']): void;
   dismissToast(id: string): void;
   markChatRead(): void;
   setRenderSize(peerId: string, source: ProducerSource, width: number): void;
@@ -102,27 +122,31 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
     });
 
     client.on('moderatorAction', (action) => {
-      const messages = {
-        mute: `${action.byDisplayName} muted you`,
-        stopVideo: `${action.byDisplayName} stopped your video`,
-        stopShare: `${action.byDisplayName} stopped your screen share`,
-        unmuteRequest: `${action.byDisplayName} asked you to unmute`,
-      } as const;
-      get().pushToast(messages[action.action], 'info');
+      const keys = {
+        mute: 'moderator.muted',
+        stopVideo: 'moderator.stoppedVideo',
+        stopShare: 'moderator.stoppedShare',
+        unmuteRequest: 'moderator.unmuteRequest',
+      } as const satisfies Record<typeof action.action, MessageKey>;
+      get().pushToast({ key: keys[action.action], params: { name: action.byDisplayName } }, 'info');
     });
 
-    client.on('error', ({ message }) => get().pushToast(message, 'error'));
+    client.on('error', ({ message }) => get().pushToast({ text: message }, 'error'));
 
-    client.on('removed', ({ reason }) => set({ status: 'left', fatalError: reason }));
-    client.on('meetingEnded', ({ reason }) => set({ status: 'left', fatalError: reason }));
-    client.on('lobbyDenied', ({ reason }) => set({ status: 'left', fatalError: reason }));
+    client.on('removed', ({ reason }) => set({ status: 'left', fatalError: { text: reason } }));
+    client.on('meetingEnded', ({ reason }) => set({ status: 'left', fatalError: { text: reason } }));
+    client.on('lobbyDenied', ({ reason }) => set({ status: 'left', fatalError: { text: reason } }));
 
     set({ client });
 
-    // Handle for the end-to-end suite and for debugging a live meeting from the
-    // console. Never exposed in a production build.
+    // Handles for the end-to-end suite and for debugging a live meeting from the
+    // console: the engine, and the UI store so a panel can be opened without
+    // clicking a button whose label is itself under test. Never exposed in a
+    // production build.
     if (import.meta.env.DEV) {
-      (window as unknown as { __meet?: unknown }).__meet = client;
+      const debug = window as unknown as { __meet?: unknown; __meetStore?: unknown };
+      debug.__meet = client;
+      debug.__meetStore = useRoomStore;
     }
 
     try {
@@ -130,8 +154,7 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
       if (options.cameraDeviceId) await client.setDevice('videoinput', options.cameraDeviceId).catch(() => undefined);
       await client.join();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Could not join the meeting.';
-      set({ status: 'error', fatalError: message });
+      set({ status: 'error', fatalError: toastFromError(error, 'room.joinFailed') });
       throw error;
     }
   },
@@ -145,9 +168,9 @@ export const useRoomStore = create<RoomStore>((set, get) => ({
   setPanel: (panel) => set({ panel, unreadChat: panel === 'chat' ? 0 : get().unreadChat }),
   pinPeer: (pinnedPeerId) => set({ pinnedPeerId, layout: pinnedPeerId ? 'speaker' : get().layout }),
 
-  pushToast(message, tone = 'info') {
+  pushToast(content, tone = 'info') {
     const id = `toast-${toastCounter++}`;
-    set({ toasts: [...get().toasts, { id, message, tone }] });
+    set({ toasts: [...get().toasts, { id, content, tone }] });
     setTimeout(() => get().dismissToast(id), 5000);
   },
 
@@ -174,10 +197,29 @@ function getOrCreatePeerId(): string {
   const key = 'meet.peerId';
   let id = sessionStorage.getItem(key);
   if (!id) {
-    id = crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+    id = randomPeerId();
     sessionStorage.setItem(key, id);
   }
   return id;
+}
+
+/**
+ * 16 random hex characters.
+ *
+ * `crypto.randomUUID` is only defined in a secure context, and the dev server
+ * is routinely reached over plain HTTP on a LAN address or a tunnel — where it
+ * is missing entirely and joining used to die on a TypeError before the socket
+ * was ever opened. `getRandomValues` has no such restriction.
+ */
+function randomPeerId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    return [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+  return (Math.random().toString(16).slice(2) + Date.now().toString(16)).slice(0, 16);
 }
 
 function browserName(): string {

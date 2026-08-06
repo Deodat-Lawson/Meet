@@ -2,6 +2,7 @@ import { Platform, PermissionsAndroid } from 'react-native';
 import { mediaDevices } from 'react-native-webrtc';
 import type { ClientPlatform } from '@meet/protocol';
 import type { DeviceOption, DisplayMediaStreamOptions, MediaAdapter } from '@meet/client-core';
+import { t } from '../i18n';
 
 /**
  * React Native implementation of the platform media contract.
@@ -35,7 +36,7 @@ export class RNMediaAdapter implements MediaAdapter {
 
   async getDisplayMedia(_options: DisplayMediaStreamOptions): Promise<MediaStream> {
     if (Platform.OS !== 'android') {
-      throw new Error('Screen sharing is only available on Android in this app.');
+      throw new Error(t('device.shareAndroidOnly'));
     }
 
     // Android 13+ needs notification permission before the MediaProjection
@@ -120,12 +121,18 @@ export class RNMediaAdapter implements MediaAdapter {
       .map(([permission]) => (permission.includes('CAMERA') ? 'camera' : 'microphone'));
 
     if (denied.length > 0) {
-      const blocked = Object.values(results).includes(PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN);
-      throw new Error(
-        blocked
-          ? `Access to your ${denied.join(' and ')} is blocked. Enable it in Settings → Apps → Meet → Permissions.`
-          : `Meet needs access to your ${denied.join(' and ')} to join the meeting.`,
+      // One name or both — "camera and microphone" is its own phrase because
+      // joining two translated nouns with a translated "and" reads wrong in
+      // languages that do not use a conjunction here.
+      const device = t(
+        denied.length > 1
+          ? 'device.cameraAndMicrophone'
+          : denied[0] === 'camera'
+            ? 'device.camera'
+            : 'device.microphone',
       );
+      const blocked = Object.values(results).includes(PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN);
+      throw new Error(blocked ? t('device.permissionBlocked', { device }) : t('device.permissionNeeded', { device }));
     }
   }
 }

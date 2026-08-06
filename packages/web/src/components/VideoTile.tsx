@@ -1,8 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import { colorForPeer, initialsFor, type NetworkQuality, type PeerInfo, type ProducerSource } from '@meet/protocol';
+import {
+  colorForPeer,
+  initialsFor,
+  type MessageKey,
+  type NetworkQuality,
+  type PeerInfo,
+  type ProducerSource,
+} from '@meet/protocol';
 import { HandIcon, MicOffIcon, PinIcon } from './icons';
 import { useRoomStore } from '../store/roomStore';
+import { useT } from '../i18n';
 import { webMediaAdapter } from '../adapters/WebMediaAdapter';
+
+const QUALITY_KEYS: Record<NetworkQuality, MessageKey> = {
+  excellent: 'quality.excellent',
+  good: 'quality.good',
+  poor: 'quality.poor',
+  critical: 'quality.critical',
+  disconnected: 'quality.disconnected',
+};
 
 interface VideoTileProps {
   peer: PeerInfo;
@@ -38,6 +54,7 @@ export function VideoTile({
   onPin,
   compact = false,
 }: VideoTileProps) {
+  const t = useT();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const setRenderSize = useRoomStore((s) => s.setRenderSize);
@@ -151,20 +168,25 @@ export function VideoTile({
               aria-hidden
             />
           )}
-          {isLocal ? `${peer.displayName} (you)` : peer.displayName}
-          {source === 'screen' && ' — screen'}
+          {isLocal ? t('tile.self', { name: peer.displayName }) : peer.displayName}
+          {source === 'screen' && t('tile.screenSuffix')}
         </span>
-        {quality && quality !== 'excellent' && <span className={`quality-dot quality-${quality}`} title={`Connection: ${quality}`} />}
+        {quality && quality !== 'excellent' && (
+          <span
+            className={`quality-dot quality-${quality}`}
+            title={t('tile.connection', { quality: t(QUALITY_KEYS[quality]) })}
+          />
+        )}
       </div>
 
       <div className="tile-badges">
         {peer.handRaised && (
-          <span className="pip" title="Hand raised" style={{ color: '#ffd166' }}>
+          <span className="pip" title={t('tile.handRaised')} style={{ color: '#ffd166' }}>
             <HandIcon size={14} />
           </span>
         )}
         {pinned && (
-          <span className="pip" title="Pinned">
+          <span className="pip" title={t('tile.pinned')}>
             <PinIcon size={13} />
           </span>
         )}
@@ -172,7 +194,12 @@ export function VideoTile({
 
       {!compact && onPin && (
         <div className="tile-actions">
-          <button className="pip" onClick={onPin} title={pinned ? 'Unpin' : 'Pin to main view'} aria-label={pinned ? 'Unpin' : 'Pin'}>
+          <button
+            className="pip"
+            onClick={onPin}
+            title={pinned ? t('tile.unpin') : t('tile.pin')}
+            aria-label={pinned ? t('tile.unpin') : t('tile.pin')}
+          >
             <PinIcon size={13} />
           </button>
         </div>

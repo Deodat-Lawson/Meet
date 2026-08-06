@@ -13,12 +13,16 @@ import {
 import { normalizeRoomId } from '@meet/protocol';
 import { colors, radius, spacing } from '../theme';
 import { LogoIcon } from '../components/Icons';
+import { LanguageToggle } from '../components/LanguageToggle';
+import { t as translateNow, useT, useTranslatable, type TranslatableText } from '../i18n';
 import { getServerConfig, getServerUrl, setServerUrl } from '../config';
 
 export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => void }) {
+  const t = useT();
+  const text = useTranslatable();
   const [joinCode, setJoinCode] = useState('');
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<TranslatableText | null>(null);
   const [serverInput, setServerInput] = useState(getServerUrl());
   const [showServer, setShowServer] = useState(false);
 
@@ -33,14 +37,16 @@ export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => voi
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
       });
-      if (!response.ok) throw new Error(`Server responded ${response.status}`);
+      // Rendered through the same path as a thrown error so the reason keeps
+      // its place in the sentence below.
+      if (!response.ok) throw new Error(translateNow('mobile.serverResponded', { status: response.status }));
       const { roomId } = (await response.json()) as { roomId: string };
       onOpenRoom(roomId);
     } catch (err) {
       setError(
         err instanceof Error
-          ? `Could not reach the server at ${getServerUrl()}. ${err.message}`
-          : 'Could not create the meeting.',
+          ? { key: 'mobile.serverUnreachable', params: { url: getServerUrl(), detail: err.message } }
+          : { key: 'home.createFailed' },
       );
     } finally {
       setCreating(false);
@@ -53,7 +59,7 @@ export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => voi
     const fromUrl = raw.match(/\/room\/([^/?#]+)/)?.[1];
     const id = normalizeRoomId(fromUrl ?? raw);
     if (!id) {
-      setError('Enter a meeting code or link.');
+      setError({ key: 'home.enterCode' });
       return;
     }
     onOpenRoom(id);
@@ -65,13 +71,13 @@ export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => voi
         <View style={styles.card}>
           <View style={styles.brand}>
             <LogoIcon size={34} />
-            <Text style={styles.brandText}>Meet</Text>
+            <Text style={styles.brandText}>{t('app.name')}</Text>
+            <View style={styles.flex} />
+            <LanguageToggle />
           </View>
 
-          <Text style={styles.title}>Start or join a meeting</Text>
-          <Text style={styles.subtitle}>
-            Video, audio and screen sharing. Share your screen straight from your phone.
-          </Text>
+          <Text style={styles.title}>{t('home.title')}</Text>
+          <Text style={styles.subtitle}>{t('mobile.homeSubtitle')}</Text>
 
           <TouchableOpacity
             style={[styles.button, styles.buttonPrimary]}
@@ -79,20 +85,24 @@ export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => voi
             disabled={creating}
             accessibilityRole="button"
           >
-            {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonPrimaryText}>New meeting</Text>}
+            {creating ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonPrimaryText}>{t('home.newMeeting')}</Text>
+            )}
           </TouchableOpacity>
 
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
+            <Text style={styles.dividerText}>{t('common.or')}</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          <Text style={styles.label}>Join with a code</Text>
+          <Text style={styles.label}>{t('home.joinWithCode')}</Text>
           <View style={styles.row}>
             <TextInput
               style={[styles.input, styles.flex]}
-              placeholder="abc-defg-hij"
+              placeholder={t('home.joinCodePlaceholder')}
               placeholderTextColor={colors.textFaint}
               value={joinCode}
               onChangeText={setJoinCode}
@@ -102,19 +112,21 @@ export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => voi
               returnKeyType="go"
             />
             <TouchableOpacity style={styles.button} onPress={joinMeeting} disabled={!joinCode.trim()}>
-              <Text style={styles.buttonText}>Join</Text>
+              <Text style={styles.buttonText}>{t('home.join')}</Text>
             </TouchableOpacity>
           </View>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{text(error)}</Text> : null}
 
           <TouchableOpacity onPress={() => setShowServer((open) => !open)} style={styles.serverToggle}>
-            <Text style={styles.serverToggleText}>{showServer ? 'Hide server settings' : 'Server settings'}</Text>
+            <Text style={styles.serverToggleText}>
+              {showServer ? t('mobile.hideServerSettings') : t('mobile.serverSettings')}
+            </Text>
           </TouchableOpacity>
 
           {showServer && (
             <View style={styles.serverBox}>
-              <Text style={styles.label}>Server address</Text>
+              <Text style={styles.label}>{t('mobile.serverAddress')}</Text>
               <TextInput
                 style={styles.input}
                 value={serverInput}
@@ -124,10 +136,7 @@ export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => voi
                 placeholder="http://192.168.1.10:4000"
                 placeholderTextColor={colors.textFaint}
               />
-              <Text style={styles.hint}>
-                Use your computer's LAN address when running the server locally. 10.0.2.2 reaches the host machine from
-                the Android emulator.
-              </Text>
+              <Text style={styles.hint}>{t('mobile.serverHint')}</Text>
             </View>
           )}
         </View>

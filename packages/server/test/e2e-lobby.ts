@@ -49,6 +49,15 @@ async function waitFor(page: Page, predicate: string, timeoutMs: number, label: 
 async function launch(): Promise<{ browser: Browser; page: Page }> {
   const browser = await puppeteer.launch({ headless: true, acceptInsecureCerts: true, args: CHROME_ARGS });
   const page = await browser.newPage();
+  // These assertions match on English button text; pin the language so the
+  // suite does not depend on the locale of whatever machine it runs on.
+  await page.evaluateOnNewDocument(() => {
+    try {
+      localStorage.setItem('meet.locale', 'en');
+    } catch {
+      /* storage may be unavailable */
+    }
+  });
   await page.setViewport({ width: 1280, height: 800 });
   page.on('pageerror', (error) => console.error('[page]', error.message));
   return { browser, page };

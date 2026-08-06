@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { RoomClient, RoomState } from '@meet/client-core';
-import { useRoomStore } from '../store/roomStore';
+import type { Translator } from '@meet/protocol';
+import { useRoomStore, toastFromError } from '../store/roomStore';
+import { useT } from '../i18n';
 import {
   ChatIcon,
   GridIcon,
@@ -22,6 +24,11 @@ import {
 
 const REACTIONS = ['👍', '👏', '❤️', '😂', '😮', '🎉', '🤔', '👋'];
 
+/* Keyboard shortcuts are typography, not prose — the same in every language. */
+const MIC_SHORTCUT = '⌘⇧A';
+const CAMERA_SHORTCUT = '⌘⇧V';
+const SHARE_SHORTCUT = '⌘⇧S';
+
 interface ControlBarProps {
   client: RoomClient;
   room: RoomState;
@@ -30,6 +37,7 @@ interface ControlBarProps {
 
 export function ControlBar({ client, room, onLeave }: ControlBarProps) {
   const { panel, setPanel, layout, setLayout, pushToast, unreadChat } = useRoomStore();
+  const t = useT();
   const [reactionsOpen, setReactionsOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -46,9 +54,11 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
     try {
       await action();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Something went wrong.';
-      // A cancelled share picker is a normal outcome, not a failure.
-      if (!/cancelled/i.test(message)) pushToast(message, 'error');
+      // A cancelled share picker is a normal outcome, not a failure. The check
+      // is against the browser's own English message, so it stays language-
+      // independent by looking at the raw error rather than the translation.
+      const raw = error instanceof Error ? error.message : '';
+      if (!/cancelled/i.test(raw)) pushToast(toastFromError(error, 'common.somethingWentWrong'), 'error');
     } finally {
       setBusy(null);
     }
@@ -97,22 +107,26 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
         className={`control${micOn ? '' : ' off'}`}
         onClick={() => void run('mic', () => client.toggleMic())}
         disabled={busy === 'mic'}
-        title={micOn ? 'Mute (⌘⇧A)' : 'Unmute (⌘⇧A)'}
+        title={micOn ? t('controls.muteHint', { shortcut: MIC_SHORTCUT }) : t('controls.unmuteHint', { shortcut: MIC_SHORTCUT })}
         aria-pressed={micOn}
       >
         <span className="icon-wrap">{micOn ? <MicIcon /> : <MicOffIcon />}</span>
-        {micOn ? 'Mute' : 'Unmute'}
+        {micOn ? t('controls.mute') : t('controls.unmute')}
       </button>
 
       <button
         className={`control${local.cameraEnabled ? '' : ' off'}`}
         onClick={() => void run('cam', () => client.toggleCamera())}
         disabled={busy === 'cam'}
-        title={local.cameraEnabled ? 'Stop video (⌘⇧V)' : 'Start video (⌘⇧V)'}
+        title={
+          local.cameraEnabled
+            ? t('controls.stopVideoHint', { shortcut: CAMERA_SHORTCUT })
+            : t('controls.startVideoHint', { shortcut: CAMERA_SHORTCUT })
+        }
         aria-pressed={local.cameraEnabled}
       >
         <span className="icon-wrap">{local.cameraEnabled ? <VideoIcon /> : <VideoOffIcon />}</span>
-        {local.cameraEnabled ? 'Stop video' : 'Start video'}
+        {local.cameraEnabled ? t('controls.stopVideo') : t('controls.startVideo')}
       </button>
 
       <button
@@ -121,39 +135,39 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
         disabled={busy === 'share' || (someoneElseSharing && !local.screenSharing)}
         title={
           someoneElseSharing && !local.screenSharing
-            ? 'Someone else is sharing'
+            ? t('controls.someoneElseSharing')
             : local.screenSharing
-              ? 'Stop sharing (⌘⇧S)'
-              : 'Share screen (⌘⇧S)'
+              ? t('controls.stopShareHint', { shortcut: SHARE_SHORTCUT })
+              : t('controls.shareHint', { shortcut: SHARE_SHORTCUT })
         }
         aria-pressed={local.screenSharing}
       >
         <span className="icon-wrap">{local.screenSharing ? <ScreenShareOffIcon /> : <ScreenShareIcon />}</span>
-        {local.screenSharing ? 'Stop share' : 'Share'}
+        {local.screenSharing ? t('controls.stopShare') : t('controls.share')}
       </button>
 
       <button
         className={`control${panel === 'participants' ? ' active' : ''}`}
         onClick={() => setPanel(panel === 'participants' ? 'none' : 'participants')}
-        title="Participants"
+        title={t('controls.participants')}
       >
         <span className="icon-wrap">
           <UsersIcon />
           <span className="control-count">{participantCount}</span>
         </span>
-        Participants
+        {t('controls.participants')}
       </button>
 
       <button
         className={`control${panel === 'chat' ? ' active' : ''}`}
         onClick={() => setPanel(panel === 'chat' ? 'none' : 'chat')}
-        title="Chat"
+        title={t('controls.chat')}
       >
         <span className="icon-wrap">
           <ChatIcon />
           {unreadChat > 0 && <span className="control-count">{unreadChat > 9 ? '9+' : unreadChat}</span>}
         </span>
-        Chat
+        {t('controls.chat')}
       </button>
 
       <div className="control-wrap">
@@ -163,13 +177,13 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
             setReactionsOpen((open) => !open);
             setMoreOpen(false);
           }}
-          title="Reactions"
+          title={t('controls.reactions')}
           aria-expanded={reactionsOpen}
         >
           <span className="icon-wrap">
             <SmileIcon />
           </span>
-          React
+          {t('controls.react')}
         </button>
         {reactionsOpen && (
           <div className="reaction-bar" role="menu">
@@ -180,7 +194,8 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
                   void client.sendReaction(emoji);
                   setReactionsOpen(false);
                 }}
-                title={`Send ${emoji}`}
+                title={t('controls.sendReaction', { emoji })}
+                aria-label={t('controls.sendReaction', { emoji })}
               >
                 {emoji}
               </button>
@@ -192,13 +207,13 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
       <button
         className={`control${room.self?.handRaised ? ' on-accent' : ''}`}
         onClick={() => void run('hand', () => client.raiseHand(!room.self?.handRaised))}
-        title={room.self?.handRaised ? 'Lower hand' : 'Raise hand'}
+        title={room.self?.handRaised ? t('controls.lowerHand') : t('controls.raiseHand')}
         aria-pressed={Boolean(room.self?.handRaised)}
       >
         <span className="icon-wrap">
           <HandIcon />
         </span>
-        {room.self?.handRaised ? 'Lower' : 'Raise'}
+        {room.self?.handRaised ? t('controls.lower') : t('controls.raise')}
       </button>
 
       <div className="control-wrap">
@@ -208,13 +223,13 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
             setMoreOpen((open) => !open);
             setReactionsOpen(false);
           }}
-          title="More options"
+          title={t('controls.moreOptions')}
           aria-expanded={moreOpen}
         >
           <span className="icon-wrap">
             <MoreIcon />
           </span>
-          More
+          {t('controls.more')}
         </button>
         {moreOpen && (
           <MorePopover
@@ -222,6 +237,7 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
             room={room}
             layout={layout}
             isModerator={isModerator}
+            t={t}
             onClose={() => setMoreOpen(false)}
             onLayout={setLayout}
             onSettings={() => {
@@ -233,8 +249,8 @@ export function ControlBar({ client, room, onLeave }: ControlBarProps) {
         )}
       </div>
 
-      <button className="leave-btn" onClick={onLeave} title="Leave meeting">
-        <PhoneOffIcon size={17} /> Leave
+      <button className="leave-btn" onClick={onLeave} title={t('controls.leaveMeeting')}>
+        <PhoneOffIcon size={17} /> {t('controls.leave')}
       </button>
     </div>
   );
@@ -245,6 +261,7 @@ function MorePopover({
   room,
   layout,
   isModerator,
+  t,
   onClose,
   onLayout,
   onSettings,
@@ -254,6 +271,7 @@ function MorePopover({
   room: RoomState;
   layout: 'gallery' | 'speaker';
   isModerator: boolean;
+  t: Translator;
   onClose: () => void;
   onLayout: (layout: 'gallery' | 'speaker') => void;
   onSettings: () => void;
@@ -285,11 +303,11 @@ function MorePopover({
         }}
       >
         {layout === 'gallery' ? <SpeakerViewIcon size={17} /> : <GridIcon size={17} />}
-        {layout === 'gallery' ? 'Speaker view' : 'Gallery view'}
+        {layout === 'gallery' ? t('controls.speakerView') : t('controls.galleryView')}
       </button>
 
       <button className="popover-item" onClick={onSettings}>
-        <SettingsIcon size={17} /> Audio & video settings
+        <SettingsIcon size={17} /> {t('controls.avSettings')}
       </button>
 
       {isModerator && (
@@ -301,7 +319,7 @@ function MorePopover({
               onClose();
             }}
           >
-            <RecordIcon size={17} /> {recording ? 'Stop recording' : 'Record meeting'}
+            <RecordIcon size={17} /> {recording ? t('controls.stopRecording') : t('controls.recordMeeting')}
           </button>
 
           <button
@@ -311,7 +329,7 @@ function MorePopover({
               onClose();
             }}
           >
-            <MicOffIcon size={17} /> Mute everyone
+            <MicOffIcon size={17} /> {t('controls.muteEveryone')}
           </button>
 
           <button
@@ -321,17 +339,17 @@ function MorePopover({
               onClose();
             }}
           >
-            <UsersIcon size={17} /> {room.room?.locked ? 'Unlock meeting' : 'Lock meeting'}
+            <UsersIcon size={17} /> {room.room?.locked ? t('controls.unlockMeeting') : t('controls.lockMeeting')}
           </button>
 
           <button
             className="popover-item danger"
             onClick={() => {
-              if (confirm('End the meeting for everyone?')) void onAction('end', () => client.endMeeting());
+              if (confirm(t('controls.endConfirm'))) void onAction('end', () => client.endMeeting());
               onClose();
             }}
           >
-            <PhoneOffIcon size={17} /> End meeting for all
+            <PhoneOffIcon size={17} /> {t('controls.endForAll')}
           </button>
         </>
       )}

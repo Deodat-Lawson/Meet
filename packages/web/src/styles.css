@@ -334,6 +334,11 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* The title is the one thing in the header that may be truncated, so it is
+     the one thing allowed to shrink below its content width. Without this the
+     flex item's automatic minimum keeps it at full width and pushes the copy
+     button off a narrow screen instead. */
+  min-width: 0;
 }
 
 .room-meta {
@@ -775,6 +780,30 @@ textarea {
   }
 }
 
+/* Phones: the header carries a title, a clock, status badges, the language
+   toggle and the copy button. Tighten the spacing and let the title truncate —
+   every control keeps its text label, because a tooltip is not reachable on a
+   touch screen. */
+@media (max-width: 560px) {
+  .room-header {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .room-title {
+    font-size: 14px;
+  }
+  .room-header .btn-sm {
+    padding: 0 9px;
+    gap: 5px;
+  }
+  .center-page {
+    padding: 16px;
+  }
+  .card {
+    padding: 22px 18px;
+  }
+}
+
 /* ---------------------------------------------------------- participants */
 
 .participant {
@@ -888,6 +917,10 @@ textarea {
 .empty-state {
   display: grid;
   place-items: center;
+  /* Centre the rows as a group. Without this the grid stretches its three rows
+     across the panel's full height and the 8px gap counts for nothing — the
+     icon, the heading and the hint end up hundreds of pixels apart. */
+  align-content: center;
   gap: 8px;
   height: 100%;
   color: var(--text-faint);
@@ -1110,6 +1143,95 @@ textarea {
 
 .switch.on::after {
   transform: translateX(17px);
+}
+
+/* ------------------------------------------------------- language toggle */
+
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.lang-icon {
+  display: grid;
+  place-items: center;
+  padding: 0 4px 0 6px;
+  color: var(--text-faint);
+}
+
+.lang-option {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 550;
+  line-height: 1.2;
+  color: var(--text-dim);
+  white-space: nowrap;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.lang-option:hover:not(.active) {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+.lang-option.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* One of the two spans is always hidden; which one depends on the variant and
+   the viewport. Keeping both in the DOM means switching languages never
+   reflows the control. */
+.lang-option .lang-short {
+  display: none;
+}
+
+.lang-toggle.compact .lang-option {
+  padding: 5px 9px;
+}
+
+.lang-toggle.compact .lang-option .lang-full {
+  display: none;
+}
+
+.lang-toggle.compact .lang-option .lang-short {
+  display: inline;
+}
+
+/* Phones: the full-width variants collapse to the compact labels too, so the
+   control never pushes a card header onto two lines. */
+@media (max-width: 460px) {
+  .lang-icon {
+    display: none;
+  }
+  .lang-option {
+    padding: 5px 10px;
+  }
+  .lang-option .lang-full {
+    display: none;
+  }
+  .lang-option .lang-short {
+    display: inline;
+  }
+}
+
+/* The header row of a card: title/brand on the left, language on the right. */
+.card-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card-topbar .brand {
+  margin-bottom: 0;
 }
 
 .spinner {

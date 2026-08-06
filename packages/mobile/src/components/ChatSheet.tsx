@@ -14,11 +14,14 @@ import {
 import type { RoomClient, RoomState } from '@meet/client-core';
 import { colors, radius, spacing } from '../theme';
 import { CloseIcon, SendIcon } from './Icons';
+import { fromError, useLocaleTag, useT } from '../i18n';
 import { useRoomStore } from '../store/roomStore';
 
 export function ChatSheet({ client, room }: { client: RoomClient; room: RoomState }) {
   const setPanel = useRoomStore((s) => s.setPanel);
   const pushToast = useRoomStore((s) => s.pushToast);
+  const t = useT();
+  const localeTag = useLocaleTag();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef<FlatList>(null);
@@ -31,7 +34,7 @@ export function ChatSheet({ client, room }: { client: RoomClient; room: RoomStat
       await client.sendChatMessage(trimmed);
       setText('');
     } catch (error) {
-      pushToast(error instanceof Error ? error.message : 'Message not sent', 'error');
+      pushToast(fromError(error, 'chat.notSent'), 'error');
     } finally {
       setSending(false);
     }
@@ -46,16 +49,16 @@ export function ChatSheet({ client, room }: { client: RoomClient; room: RoomStat
         >
           <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
             <View style={styles.header}>
-              <Text style={styles.headerTitle}>Chat</Text>
-              <TouchableOpacity onPress={() => setPanel('none')} accessibilityLabel="Close chat">
+              <Text style={styles.headerTitle}>{t('chat.title')}</Text>
+              <TouchableOpacity onPress={() => setPanel('none')} accessibilityLabel={t('chat.close')}>
                 <CloseIcon size={20} color={colors.textDim} />
               </TouchableOpacity>
             </View>
 
             {room.chat.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>No messages yet.</Text>
-                <Text style={styles.emptyHint}>Messages are visible to everyone in the meeting.</Text>
+                <Text style={styles.emptyText}>{t('chat.empty')}</Text>
+                <Text style={styles.emptyHint}>{t('chat.emptyHint')}</Text>
               </View>
             ) : (
               <FlatList
@@ -70,11 +73,14 @@ export function ChatSheet({ client, room }: { client: RoomClient; room: RoomStat
                     <View style={styles.message}>
                       <View style={styles.messageHead}>
                         <Text style={[styles.author, isSelf && { color: colors.accent }]}>
-                          {isSelf ? 'You' : item.displayName}
+                          {isSelf ? t('chat.you') : item.displayName}
                         </Text>
-                        {item.to ? <Text style={styles.private}>private</Text> : null}
+                        {item.to ? <Text style={styles.private}>{t('chat.private')}</Text> : null}
                         <Text style={styles.time}>
-                          {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(item.timestamp).toLocaleTimeString(localeTag, {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </Text>
                       </View>
                       <Text style={styles.messageText}>{item.text}</Text>
@@ -87,7 +93,7 @@ export function ChatSheet({ client, room }: { client: RoomClient; room: RoomStat
             <View style={styles.inputRow}>
               <TextInput
                 style={styles.input}
-                placeholder="Type a message…"
+                placeholder={t('chat.placeholder')}
                 placeholderTextColor={colors.textFaint}
                 value={text}
                 onChangeText={setText}
@@ -99,7 +105,7 @@ export function ChatSheet({ client, room }: { client: RoomClient; room: RoomStat
                 style={[styles.sendButton, (!text.trim() || sending) && styles.sendButtonDisabled]}
                 onPress={send}
                 disabled={!text.trim() || sending}
-                accessibilityLabel="Send message"
+                accessibilityLabel={t('chat.send')}
               >
                 <SendIcon size={18} color="#fff" />
               </TouchableOpacity>

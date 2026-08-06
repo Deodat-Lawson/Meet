@@ -4,11 +4,13 @@ import { colorForPeer, initialsFor, type PeerInfo } from '@meet/protocol';
 import type { RoomClient, RoomState } from '@meet/client-core';
 import { colors, radius, spacing } from '../theme';
 import { CloseIcon, HandIcon, MicIcon, MicOffIcon, MoreIcon, ScreenShareIcon, VideoIcon, VideoOffIcon } from './Icons';
-import { useRoomStore } from '../store/roomStore';
+import { fromError, useT } from '../i18n';
+import { useRoomStore, type ToastContent } from '../store/roomStore';
 
 export function ParticipantsSheet({ client, room }: { client: RoomClient; room: RoomState }) {
   const setPanel = useRoomStore((s) => s.setPanel);
   const pushToast = useRoomStore((s) => s.pushToast);
+  const t = useT();
   const [menuFor, setMenuFor] = useState<PeerInfo | null>(null);
 
   const self = room.self;
@@ -20,12 +22,12 @@ export function ParticipantsSheet({ client, room }: { client: RoomClient; room: 
   });
   const data = self ? [self, ...peers] : peers;
 
-  const act = async (label: string, action: () => Promise<unknown>) => {
+  const act = async (success: ToastContent, action: () => Promise<unknown>) => {
     try {
       await action();
-      pushToast(label, 'success');
+      pushToast(success, 'success');
     } catch (error) {
-      pushToast(error instanceof Error ? error.message : 'Action failed', 'error');
+      pushToast(fromError(error, 'common.actionFailed'), 'error');
     } finally {
       setMenuFor(null);
     }
@@ -36,15 +38,15 @@ export function ParticipantsSheet({ client, room }: { client: RoomClient; room: 
       <Pressable style={styles.backdrop} onPress={() => setPanel('none')}>
         <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Participants ({data.length})</Text>
-            <TouchableOpacity onPress={() => setPanel('none')} accessibilityLabel="Close">
+            <Text style={styles.headerTitle}>{t('participants.title', { count: data.length })}</Text>
+            <TouchableOpacity onPress={() => setPanel('none')} accessibilityLabel={t('common.close')}>
               <CloseIcon size={20} color={colors.textDim} />
             </TouchableOpacity>
           </View>
 
           {room.lobbyPeers.length > 0 && isModerator && (
             <View style={styles.lobbySection}>
-              <Text style={styles.sectionLabel}>WAITING TO JOIN</Text>
+              <Text style={styles.sectionLabel}>{t('mobile.waitingToJoin')}</Text>
               {room.lobbyPeers.map((peer) => (
                 <View key={peer.id} style={styles.row}>
                   <Avatar id={peer.id} name={peer.displayName} />
@@ -53,15 +55,19 @@ export function ParticipantsSheet({ client, room }: { client: RoomClient; room: 
                   </Text>
                   <TouchableOpacity
                     style={[styles.smallButton, styles.smallButtonPrimary]}
-                    onPress={() => void act('Admitted', () => client.admitLobbyPeer(peer.id, true))}
+                    onPress={() =>
+                      void act({ key: 'participants.admitted' }, () => client.admitLobbyPeer(peer.id, true))
+                    }
                   >
-                    <Text style={styles.smallButtonPrimaryText}>Admit</Text>
+                    <Text style={styles.smallButtonPrimaryText}>{t('participants.admit')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.smallButton}
-                    onPress={() => void act('Denied', () => client.admitLobbyPeer(peer.id, false))}
+                    onPress={() =>
+                      void act({ key: 'participants.denied' }, () => client.admitLobbyPeer(peer.id, false))
+                    }
                   >
-                    <Text style={styles.smallButtonText}>Deny</Text>
+                    <Text style={styles.smallButtonText}>{t('participants.deny')}</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -78,11 +84,10 @@ export function ParticipantsSheet({ client, room }: { client: RoomClient; room: 
                   <Avatar id={item.id} name={item.displayName} level={room.audioLevels.get(item.id) ?? 0} />
                   <View style={styles.nameWrap}>
                     <Text style={styles.name} numberOfLines={1}>
-                      {item.displayName}
-                      {isSelf ? ' (you)' : ''}
+                      {isSelf ? t('participants.self', { name: item.displayName }) : item.displayName}
                     </Text>
                     {item.role !== 'participant' && (
-                      <Text style={styles.role}>{item.role === 'host' ? 'Host' : 'Co-host'}</Text>
+                      <Text style={styles.role}>{item.role === 'host' ? t('role.host') : t('role.coHost')}</Text>
                     )}
                   </View>
 
@@ -100,7 +105,10 @@ export function ParticipantsSheet({ client, room }: { client: RoomClient; room: 
                   )}
 
                   {isModerator && !isSelf && (
-                    <TouchableOpacity onPress={() => setMenuFor(item)} accessibilityLabel={`Options for ${item.displayName}`}>
+                    <TouchableOpacity
+                      onPress={() => setMenuFor(item)}
+                      accessibilityLabel={t('participants.optionsFor', { name: item.displayName })}
+                    >
                       <MoreIcon size={18} color={colors.textDim} />
                     </TouchableOpacity>
                   )}
@@ -112,9 +120,9 @@ export function ParticipantsSheet({ client, room }: { client: RoomClient; room: 
           {isModerator && (
             <TouchableOpacity
               style={styles.footerButton}
-              onPress={() => void act('Everyone muted', () => client.muteAll(true))}
+              onPress={() => void act({ key: 'participants.everyoneMuted' }, () => client.muteAll(true))}
             >
-              <Text style={styles.footerButtonText}>Mute everyone</Text>
+              <Text style={styles.footerButtonText}>{t('controls.muteEveryone')}</Text>
             </TouchableOpacity>
           )}
         </Pressable>
@@ -129,51 +137,60 @@ export function ParticipantsSheet({ client, room }: { client: RoomClient; room: 
                 <Text style={styles.menuTitle}>{menuFor.displayName}</Text>
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => void act(`Muted ${menuFor.displayName}`, () => client.muteParticipant(menuFor.id))}
+                  onPress={() =>
+                    void act({ key: 'participants.muted', params: { name: menuFor.displayName } }, () =>
+                      client.muteParticipant(menuFor.id),
+                    )
+                  }
                 >
-                  <Text style={styles.menuItemText}>Mute</Text>
+                  <Text style={styles.menuItemText}>{t('participants.mute')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.menuItem}
-                  onPress={() => void act('Video stopped', () => client.stopParticipantVideo(menuFor.id))}
+                  onPress={() => void act({ key: 'mobile.videoStopped' }, () => client.stopParticipantVideo(menuFor.id))}
                 >
-                  <Text style={styles.menuItemText}>Stop video</Text>
+                  <Text style={styles.menuItemText}>{t('participants.stopVideo')}</Text>
                 </TouchableOpacity>
                 {menuFor.screenSharing && (
                   <TouchableOpacity
                     style={styles.menuItem}
-                    onPress={() => void act('Share stopped', () => client.stopParticipantShare(menuFor.id))}
+                    onPress={() =>
+                      void act({ key: 'mobile.shareStopped' }, () => client.stopParticipantShare(menuFor.id))
+                    }
                   >
-                    <Text style={styles.menuItemText}>Stop screen share</Text>
+                    <Text style={styles.menuItemText}>{t('participants.stopShare')}</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() =>
-                    void act(
-                      'Role updated',
-                      () => client.setPeerRole(menuFor.id, menuFor.role === 'co-host' ? 'participant' : 'co-host'),
+                    void act({ key: 'mobile.roleUpdated' }, () =>
+                      client.setPeerRole(menuFor.id, menuFor.role === 'co-host' ? 'participant' : 'co-host'),
                     )
                   }
                 >
                   <Text style={styles.menuItemText}>
-                    {menuFor.role === 'co-host' ? 'Remove co-host' : 'Make co-host'}
+                    {menuFor.role === 'co-host' ? t('participants.removeCoHost') : t('participants.makeCoHost')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.menuItem}
                   onPress={() =>
-                    Alert.alert('Remove participant', `Remove ${menuFor.displayName} from the meeting?`, [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Remove',
-                        style: 'destructive',
-                        onPress: () => void act('Removed', () => client.removeParticipant(menuFor.id)),
-                      },
-                    ])
+                    Alert.alert(
+                      t('mobile.removeParticipantTitle'),
+                      t('participants.removeConfirm', { name: menuFor.displayName }),
+                      [
+                        { text: t('common.cancel'), style: 'cancel' },
+                        {
+                          text: t('mobile.remove'),
+                          style: 'destructive',
+                          onPress: () => void act({ key: 'mobile.removed' }, () => client.removeParticipant(menuFor.id)),
+                        },
+                      ],
+                    )
                   }
                 >
-                  <Text style={[styles.menuItemText, { color: colors.danger }]}>Remove from meeting</Text>
+                  <Text style={[styles.menuItemText, { color: colors.danger }]}>{t('participants.remove')}</Text>
                 </TouchableOpacity>
               </>
             )}

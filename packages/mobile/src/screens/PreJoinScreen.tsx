@@ -13,6 +13,8 @@ import {
 import { RTCView, type MediaStream } from 'react-native-webrtc';
 import { absoluteFill, colors, radius, spacing } from '../theme';
 import { MicIcon, MicOffIcon, VideoIcon, VideoOffIcon } from '../components/Icons';
+import { LanguageToggle } from '../components/LanguageToggle';
+import { fromError, useT, useTranslatable, type TranslatableText } from '../i18n';
 import { rnMediaAdapter } from '../adapters/RNMediaAdapter';
 import { getServerConfig } from '../config';
 import { useRoomStore } from '../store/roomStore';
@@ -30,6 +32,8 @@ interface PreJoinScreenProps {
  */
 export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
   const join = useRoomStore((s) => s.join);
+  const t = useT();
+  const text = useTranslatable();
   const [displayName, setDisplayName] = useState('');
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
@@ -37,7 +41,7 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
   const [passcode, setPasscode] = useState('');
   const [needsPasscode, setNeedsPasscode] = useState(false);
   const [roomName, setRoomName] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<TranslatableText | null>(null);
   const [joining, setJoining] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -83,7 +87,7 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
         setPreview(stream);
         setError(null);
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Could not open the camera.');
+        if (!cancelled) setError(fromError(err, 'mobile.cameraFailed'));
       }
     };
 
@@ -104,7 +108,7 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
   const handleJoin = async () => {
     const name = displayName.trim();
     if (!name) {
-      setError('Please enter your name.');
+      setError({ key: 'prejoin.enterName' });
       return;
     }
     setJoining(true);
@@ -119,7 +123,9 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as { message?: string };
-        throw new Error(body.message ?? 'Could not join this meeting.');
+        setError(body.message ? { text: body.message } : { key: 'prejoin.joinFailed' });
+        setJoining(false);
+        return;
       }
       const { token } = (await response.json()) as { token: string };
 
@@ -130,7 +136,7 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
 
       await join({ roomId, displayName: name, token, micEnabled, cameraEnabled });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not join this meeting.');
+      setError(fromError(err, 'prejoin.joinFailed'));
       setJoining(false);
     }
   };
@@ -144,7 +150,7 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
           ) : (
             <View style={styles.previewPlaceholder}>
               <VideoOffIcon size={30} color={colors.textDim} />
-              <Text style={styles.placeholderText}>Camera is off</Text>
+              <Text style={styles.placeholderText}>{t('prejoin.cameraOff')}</Text>
             </View>
           )}
 
@@ -152,14 +158,14 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
             <TouchableOpacity
               style={[styles.roundButton, !micEnabled && styles.roundButtonOff]}
               onPress={() => setMicEnabled((on) => !on)}
-              accessibilityLabel={micEnabled ? 'Turn off microphone' : 'Turn on microphone'}
+              accessibilityLabel={micEnabled ? t('prejoin.turnOffMic') : t('prejoin.turnOnMic')}
             >
               {micEnabled ? <MicIcon size={20} /> : <MicOffIcon size={20} color="#fff" />}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.roundButton, !cameraEnabled && styles.roundButtonOff]}
               onPress={() => setCameraEnabled((on) => !on)}
-              accessibilityLabel={cameraEnabled ? 'Turn off camera' : 'Turn on camera'}
+              accessibilityLabel={cameraEnabled ? t('prejoin.turnOffCamera') : t('prejoin.turnOnCamera')}
             >
               {cameraEnabled ? <VideoIcon size={20} /> : <VideoOffIcon size={20} color="#fff" />}
             </TouchableOpacity>
@@ -167,13 +173,14 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.title}>Ready to join?</Text>
-          <Text style={styles.subtitle}>{roomName ?? `Meeting ${roomId}`}</Text>
+          <LanguageToggle style={styles.language} />
+          <Text style={styles.title}>{t('prejoin.title')}</Text>
+          <Text style={styles.subtitle}>{roomName ?? t('prejoin.meeting', { id: roomId })}</Text>
 
-          <Text style={styles.label}>Your name</Text>
+          <Text style={styles.label}>{t('prejoin.yourName')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Alex Rivera"
+            placeholder={t('prejoin.namePlaceholder')}
             placeholderTextColor={colors.textFaint}
             value={displayName}
             onChangeText={setDisplayName}
@@ -183,7 +190,7 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
 
           {needsPasscode && (
             <>
-              <Text style={[styles.label, { marginTop: spacing.md }]}>Meeting passcode</Text>
+              <Text style={[styles.label, { marginTop: spacing.md }]}>{t('prejoin.passcode')}</Text>
               <TextInput
                 style={styles.input}
                 secureTextEntry
@@ -199,14 +206,18 @@ export function PreJoinScreen({ roomId, onCancel }: PreJoinScreenProps) {
             onPress={handleJoin}
             disabled={joining}
           >
-            {joining ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonPrimaryText}>Join now</Text>}
+            {joining ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonPrimaryText}>{t('prejoin.joinNow')}</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.button, styles.buttonGhost]} onPress={onCancel}>
-            <Text style={styles.buttonText}>Cancel</Text>
+            <Text style={styles.buttonText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={styles.error}>{text(error)}</Text> : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -256,6 +267,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.xl,
   },
+  language: { alignSelf: 'flex-end', marginBottom: spacing.md },
   title: { color: colors.text, fontSize: 22, fontWeight: '700', marginBottom: 4 },
   subtitle: { color: colors.textDim, fontSize: 14, marginBottom: spacing.lg },
   label: { color: colors.textDim, fontSize: 13, fontWeight: '600', marginBottom: 6 },

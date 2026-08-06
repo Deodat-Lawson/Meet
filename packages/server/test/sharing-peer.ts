@@ -30,6 +30,15 @@ const browser = await puppeteer.launch({
 });
 
 const page = await browser.newPage();
+// This script clicks a button by its English label; pin the language so it does
+// not depend on the locale of whatever machine it runs on.
+await page.evaluateOnNewDocument(() => {
+  try {
+    localStorage.setItem('meet.locale', 'en');
+  } catch {
+    /* storage may be unavailable */
+  }
+});
 await page.goto(`${WEB_ORIGIN}/room/${ROOM}`, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#display-name', { timeout: 15_000 });
 await page.type('#display-name', 'WebPresenter');

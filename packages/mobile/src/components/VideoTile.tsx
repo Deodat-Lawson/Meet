@@ -4,6 +4,7 @@ import { RTCView, type MediaStream } from 'react-native-webrtc';
 import { colorForPeer, initialsFor, type PeerInfo, type ProducerSource } from '@meet/protocol';
 import { absoluteFill, colors, radius } from '../theme';
 import { HandIcon, MicOffIcon, ScreenShareIcon } from './Icons';
+import { useT } from '../i18n';
 import { useRoomStore } from '../store/roomStore';
 
 interface VideoTileProps {
@@ -28,6 +29,7 @@ export function VideoTile({
   compact = false,
   contain = false,
 }: VideoTileProps) {
+  const t = useT();
   const setRenderSize = useRoomStore((s) => s.setRenderSize);
   const client = useRoomStore((s) => s.client);
 
@@ -96,8 +98,8 @@ export function VideoTile({
             />
           )}
           <Text style={styles.nameText} numberOfLines={1}>
-            {isLocal ? `${peer.displayName} (you)` : peer.displayName}
-            {source === 'screen' ? ' — screen' : ''}
+            {isLocal ? t('tile.self', { name: peer.displayName }) : peer.displayName}
+            {source === 'screen' ? t('tile.screenSuffix') : ''}
           </Text>
         </View>
       </View>

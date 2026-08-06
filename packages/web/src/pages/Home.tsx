@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { normalizeRoomId } from '@meet/protocol';
 import { VideoIcon } from '../components/icons';
+import { LanguageToggle } from '../components/LanguageToggle';
+import { useT, useTranslatable, type TranslatableText } from '../i18n';
 
 export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
+  const t = useT();
+  const text = useTranslatable();
   const [joinCode, setJoinCode] = useState('');
   const [meetingName, setMeetingName] = useState('');
   const [passcode, setPasscode] = useState('');
   const [lobbyEnabled, setLobbyEnabled] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<TranslatableText | null>(null);
   const [showOptions, setShowOptions] = useState(false);
 
   const createMeeting = async () => {
@@ -24,11 +28,14 @@ export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
           lobbyEnabled,
         }),
       });
-      if (!response.ok) throw new Error('Could not create the meeting. Please try again.');
+      if (!response.ok) {
+        setError({ key: 'home.createFailedRetry' });
+        return;
+      }
       const { roomId } = (await response.json()) as { roomId: string };
       onNavigate(`/room/${roomId}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the meeting.');
+    } catch {
+      setError({ key: 'home.createFailed' });
     } finally {
       setCreating(false);
     }
@@ -40,7 +47,7 @@ export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
     const fromUrl = raw.match(/\/room\/([^/?#]+)/)?.[1];
     const id = normalizeRoomId(fromUrl ?? raw);
     if (!id) {
-      setError('Enter a meeting code or link.');
+      setError({ key: 'home.enterCode' });
       return;
     }
     onNavigate(`/room/${id}`);
@@ -49,20 +56,22 @@ export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
   return (
     <div className="center-page">
       <div className="card">
-        <div className="brand">
-          <span className="brand-mark">
-            <VideoIcon size={18} />
-          </span>
-          Meet
+        <div className="card-topbar">
+          <div className="brand">
+            <span className="brand-mark">
+              <VideoIcon size={18} />
+            </span>
+            {t('app.name')}
+          </div>
+          <span className="spacer" />
+          <LanguageToggle />
         </div>
 
-        <h1>Start or join a meeting</h1>
-        <p className="subtitle">
-          Video, audio and screen sharing that runs in your browser. No download, no account.
-        </p>
+        <h1>{t('home.title')}</h1>
+        <p className="subtitle">{t('home.subtitle')}</p>
 
         <button className="btn btn-primary btn-block" onClick={() => void createMeeting()} disabled={creating}>
-          {creating ? <span className="spinner" /> : 'New meeting'}
+          {creating ? <span className="spinner" /> : t('home.newMeeting')}
         </button>
 
         <button
@@ -70,28 +79,28 @@ export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
           style={{ marginTop: 8, background: 'transparent', color: 'var(--text-dim)', height: 32, fontSize: 13 }}
           onClick={() => setShowOptions((open) => !open)}
         >
-          {showOptions ? 'Hide options' : 'Meeting options'}
+          {showOptions ? t('home.hideOptions') : t('home.meetingOptions')}
         </button>
 
         {showOptions && (
           <div style={{ marginTop: 12, padding: 14, borderRadius: 10, background: 'var(--surface-2)' }}>
             <div className="field">
-              <label htmlFor="meeting-name">Meeting name</label>
+              <label htmlFor="meeting-name">{t('home.meetingName')}</label>
               <input
                 id="meeting-name"
                 className="input"
-                placeholder="Weekly standup"
+                placeholder={t('home.meetingNamePlaceholder')}
                 value={meetingName}
                 maxLength={120}
                 onChange={(event) => setMeetingName(event.target.value)}
               />
             </div>
             <div className="field">
-              <label htmlFor="meeting-passcode">Passcode (optional)</label>
+              <label htmlFor="meeting-passcode">{t('home.passcode')}</label>
               <input
                 id="meeting-passcode"
                 className="input"
-                placeholder="At least 4 characters"
+                placeholder={t('home.passcodePlaceholder')}
                 value={passcode}
                 maxLength={32}
                 onChange={(event) => setPasscode(event.target.value)}
@@ -104,21 +113,21 @@ export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
               role="switch"
               aria-checked={lobbyEnabled}
             >
-              <span>Waiting room</span>
+              <span>{t('home.waitingRoom')}</span>
               <span className={`switch${lobbyEnabled ? ' on' : ''}`} />
             </button>
           </div>
         )}
 
-        <div className="divider">or</div>
+        <div className="divider">{t('common.or')}</div>
 
         <div className="field">
-          <label htmlFor="join-code">Join with a code</label>
+          <label htmlFor="join-code">{t('home.joinWithCode')}</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               id="join-code"
               className="input"
-              placeholder="abc-defg-hij"
+              placeholder={t('home.joinCodePlaceholder')}
               value={joinCode}
               onChange={(event) => setJoinCode(event.target.value)}
               onKeyDown={(event) => event.key === 'Enter' && joinMeeting()}
@@ -126,17 +135,14 @@ export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
               spellCheck={false}
             />
             <button className="btn" onClick={joinMeeting} disabled={!joinCode.trim()}>
-              Join
+              {t('home.join')}
             </button>
           </div>
         </div>
 
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className="error-text">{text(error)}</p>}
 
-        <p className="hint">
-          Works in Chrome, Edge, Firefox and Safari, and in the Meet Android app. Screen sharing needs a desktop browser
-          or the Android app.
-        </p>
+        <p className="hint">{t('home.hint')}</p>
       </div>
     </div>
   );

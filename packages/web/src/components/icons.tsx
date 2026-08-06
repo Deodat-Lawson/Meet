@@ -176,3 +176,10 @@ export const CameraSwitchIcon = ({ size = 20, className }: IconProps) => (
     <path d="M9.5 13.5a2.5 2.5 0 0 1 4.3-1.7M14.5 14.5a2.5 2.5 0 0 1-4.3 1.7M14 10.5V12h-1.5M10 17.5V16h1.5" />
   </svg>
 );
+
+export const GlobeIcon = ({ size = 18, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z" />
+  </svg>
+);
