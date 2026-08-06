@@ -14,7 +14,8 @@
     "test:e2e:cross": "tsx test/e2e-cross-platform.ts",
     "test:e2e:lobby": "tsx test/e2e-lobby.ts",
     "test:e2e:i18n": "tsx test/e2e-i18n.ts",
-    "test:layout": "tsx test/verify-layout.mts"
+    "test:layout": "tsx test/verify-layout.mts",
+    "test:smoke": "tsx test/smoke-production.mts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
