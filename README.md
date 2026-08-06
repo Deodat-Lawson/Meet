@@ -98,6 +98,38 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
 
 Browsers will warn about the self-signed certificate; accept it once per device.
 
+### Joining from another machine on the same network
+
+Serve over TLS (the default `npm run dev`) and hand out your LAN address:
+
+```
+https://<your-LAN-IP>:5173/room/<code>      # e.g. https://192.168.1.159:5173/room/abc-defg-hij
+```
+
+Three things have to be true, and two of them bite silently:
+
+- **The certificate must list that IP.** Regenerate with your address in
+  `subjectAltName` if it changed; otherwise the browser rejects it outright
+  instead of offering the usual "proceed anyway".
+- **`MEDIASOUP_ANNOUNCED_IP` must be that same LAN address.** It is auto-detected,
+  but if the machine has several interfaces, set it explicitly — this is the
+  address remote peers send RTP to, and getting it wrong produces a meeting that
+  connects and then shows nothing but black tiles.
+- **The host firewall must allow inbound 5173, 4000, and the media ports**
+  (44444+, one per mediasoup worker).
+
+Each visiting device clicks through the self-signed warning once
+(**Advanced → Proceed**). To avoid that entirely, tunnel the dev server and use
+the public HTTPS hostname it gives you:
+
+```bash
+cloudflared tunnel --url https://localhost:5173 --no-tls-verify
+VITE_ALLOWED_HOSTS=<the-tunnel-host> npm run dev -w @meet/web   # Vite blocks unknown Host headers
+```
+
+Media still flows directly between machines on the LAN; only signaling and the
+page load go through the tunnel.
+
 ### Environment
 
 Everything is configured by environment variable; see `.env.example`. The two that

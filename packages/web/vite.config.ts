@@ -23,13 +23,20 @@ const https =
     ? { cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) }
     : undefined;
 
+/**
+ * Vite rejects requests whose Host header it does not recognise. Tunnelling the
+ * dev server (ngrok, cloudflared) needs that host allowed explicitly.
+ */
+const allowedHosts = process.env.VITE_ALLOWED_HOSTS?.split(',').map((h) => h.trim()).filter(Boolean);
+
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
-    // Bind to 0.0.0.0 so a phone on the same Wi-Fi can load the app.
+    // Bind to 0.0.0.0 so another machine or a phone on the same Wi-Fi can load it.
     host: true,
     https,
+    ...(allowedHosts?.length ? { allowedHosts } : {}),
     proxy: {
       '/api': { target: API_TARGET, changeOrigin: true },
       '/ws': { target: API_TARGET.replace(/^http/, 'ws'), ws: true },
