@@ -1,0 +1,49 @@
+appId: com.meet.desktop
+productName: Meet
+copyright: Meet
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - static/**/*
+  - package.json
+
+mac:
+  category: public.app-category.business
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  # Hardened runtime requires entitlements for capture; harmless when unsigned.
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # macOS refuses camera, microphone and screen capture unless the binary
+  # declares why it wants them. Without these the app launches and every
+  # media call fails silently.
+  extendInfo:
+    NSCameraUsageDescription: Meet uses your camera so other participants can see you.
+    NSMicrophoneUsageDescription: Meet uses your microphone so other participants can hear you.
+    NSScreenCaptureUsageDescription: Meet captures your screen when you choose to share it in a meeting.
+    LSMinimumSystemVersion: "11.0"
+  # No Developer ID in this environment; produce an unsigned build rather than
+  # failing. Set CSC_LINK/CSC_KEY_PASSWORD to sign.
+  identity: null
+
+dmg:
+  title: "Meet ${version}"
+  icon: build/icon.icns
+  contents:
+    - x: 140
+      y: 200
+      type: file
+    - x: 400
+      y: 200
+      type: link
+      path: /Applications
+  window:
+    width: 540
+    height: 400

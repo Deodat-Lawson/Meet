@@ -31,3 +31,8 @@ packages/web/vite.config.js.map
 packages/web/vite.config.d.ts
 packages/web/vite.config.d.ts.map
 *.tsbuildinfo
+
+# Electron desktop build output (DMGs are release artifacts, not source)
+packages/desktop/dist/
+packages/desktop/release/
+packages/desktop/node_modules/
