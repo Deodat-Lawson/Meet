@@ -33,8 +33,19 @@ write_files:
       exec > >(tee -a /var/log/meet-bootstrap.log) 2>&1
       echo "[meet] bootstrap starting $(date -Is)"
 
-      PUBLIC_IP="$(curl -s -H Metadata:true --noproxy '*' \
-        'http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text')"
+      # IMDS reports an empty publicIpAddress for Standard-SKU addresses in some
+      # configurations, so fall back to an external reflector. Getting this wrong
+      # produces a meeting that signals fine and shows only black tiles, because
+      # this value is what remote browsers send their RTP to.
+      PUBLIC_IP="$(curl -s --max-time 10 -H Metadata:true --noproxy '*' \
+        'http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text' || true)"
+      if [ -z "$PUBLIC_IP" ]; then
+        PUBLIC_IP="$(curl -s --max-time 10 https://api.ipify.org || true)"
+      fi
+      if [ -z "$PUBLIC_IP" ]; then
+        echo "[meet] FATAL: could not determine the public IP" >&2
+        exit 1
+      fi
       FQDN="$(curl -s -H Metadata:true --noproxy '*' \
         'http://169.254.169.254/metadata/instance/compute/name?api-version=2021-02-01&format=text')"
       DOMAIN="$(tr -d '[:space:]' < /opt/meet/domain 2>/dev/null || echo '')"
