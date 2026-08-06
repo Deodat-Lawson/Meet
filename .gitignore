@@ -19,3 +19,15 @@ packages/mobile/android/.cxx/
 *.keystore
 !debug.keystore
 packages/mobile/.expo/
+
+# Compiled output must never land beside sources. Vite prefers vite.config.js
+# over vite.config.ts, so a stale emitted config silently shadows the real one.
+packages/web/src/**/*.js
+packages/web/src/**/*.js.map
+packages/web/src/**/*.d.ts
+packages/web/src/**/*.d.ts.map
+packages/web/vite.config.js
+packages/web/vite.config.js.map
+packages/web/vite.config.d.ts
+packages/web/vite.config.d.ts.map
+*.tsbuildinfo

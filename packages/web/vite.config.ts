@@ -9,13 +9,17 @@ const API_TARGET = process.env.VITE_API_TARGET ?? 'http://127.0.0.1:4000';
  * `getUserMedia` and `getDisplayMedia` are gated behind a secure context. That is
  * satisfied by `localhost`, but not by the LAN address a phone or a second
  * machine would use — so dev serves over TLS whenever the generated certificate
- * is present (see infra/certs/README.md).
+ * is present.
+ *
+ * Set `VITE_HTTP=1` to serve plain HTTP instead. On localhost that is still a
+ * secure context, so media works with no certificate warning to click past; it
+ * is only LAN and phone testing that need the TLS path.
  */
 const certDir = path.resolve(__dirname, '../../infra/certs');
 const certPath = path.join(certDir, 'dev-cert.pem');
 const keyPath = path.join(certDir, 'dev-key.pem');
 const https =
-  fs.existsSync(certPath) && fs.existsSync(keyPath)
+  process.env.VITE_HTTP !== '1' && fs.existsSync(certPath) && fs.existsSync(keyPath)
     ? { cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) }
     : undefined;
 
