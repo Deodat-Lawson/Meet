@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @meet/protocol
+      - name: Typecheck every package
+        run: |
+          npx tsc -p packages/protocol/tsconfig.json --noEmit
+          npx tsc -p packages/client-core/tsconfig.json --noEmit
+          npx tsc -p packages/server/tsconfig.json --noEmit
+          npx tsc -p packages/web/tsconfig.json --noEmit
+      - run: npm run test -w @meet/server
+      - run: npm run build
+
+      - name: Fail if compiled output landed beside sources
+        # A stale emitted vite.config.js silently shadows vite.config.ts, so this
+        # is worth failing the build over rather than discovering it at runtime.
+        run: |
+          strays=$(find packages/web/src packages/client-core/src \
+            \( -name '*.js' -o -name '*.d.ts' \) -not -path '*/node_modules/*' 2>/dev/null || true)
+          if [ -n "$strays" ]; then echo "compiled output beside sources:"; echo "$strays"; exit 1; fi
+          if [ -f packages/web/vite.config.js ]; then echo "stale vite.config.js shadows the .ts"; exit 1; fi
+
+  e2e:
+    name: End-to-end (real Chrome against the real SFU)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @meet/protocol
+      - run: npx puppeteer browsers install chrome
+
+      - name: Start the SFU and the web client
+        run: |
+          npm run dev -w @meet/server > /tmp/server.log 2>&1 &
+          npm run dev:http -w @meet/web > /tmp/web.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:4000/health >/dev/null && curl -sf http://127.0.0.1:5173/ >/dev/null && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:4000/health
+        env:
+          # Loopback keeps ICE inside the runner; there is no LAN to announce.
+          MEDIASOUP_ANNOUNCED_IP: 127.0.0.1
+
+      - name: Meeting flow
+        run: npm run test:e2e -w @meet/server
+        env:
+          E2E_WEB_ORIGIN: http://localhost:5173
+
+      - name: Waiting room
+        run: npm run test:e2e:lobby -w @meet/server
+        env:
+          E2E_WEB_ORIGIN: http://localhost:5173
+
+      - name: Server log on failure
+        if: failure()
+        run: tail -100 /tmp/server.log /tmp/web.log
+
+  android:
+    name: Android build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci
+      - run: npm run build -w @meet/protocol
+      - run: npm ci --legacy-peer-deps
+        working-directory: packages/mobile
+      - run: npx tsc --noEmit
+        working-directory: packages/mobile
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew assembleDebug --no-daemon
+        working-directory: packages/mobile/android
