@@ -86,6 +86,29 @@ jobs:
         if: failure()
         run: tail -100 /tmp/server.log /tmp/web.log
 
+  desktop:
+    name: macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: packages/desktop
+      - run: npx tsc -p tsconfig.json --noEmit
+        working-directory: packages/desktop
+      # Packages unsigned; proves the icon, entitlements and builder config are
+      # all present and consistent, which a typecheck alone would not catch.
+      - run: npx electron-builder --mac --arm64 --publish never
+        working-directory: packages/desktop
+      - run: ls -lh packages/desktop/release/*.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Meet-macOS-arm64
+          path: packages/desktop/release/*.dmg
+          if-no-files-found: error
+
   android:
     name: Android build
     runs-on: ubuntu-latest

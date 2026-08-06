@@ -36,6 +36,7 @@ layer that matches how large they are actually rendering that tile.
 | `packages/server` | mediasoup SFU, signaling, REST API, moderation, lobby, chat, recording. |
 | `packages/web` | React client. |
 | `packages/mobile` | React Native Android client. Consumes `client-core` unchanged. |
+| `packages/desktop` | Electron app for macOS. Ships as a DMG; see its README. |
 | `infra` | Docker Compose, TURN, and the reverse proxy that terminates TLS. |
 
 The engine is genuinely shared: the Android app supplies a `MediaAdapter` backed by
@@ -193,6 +194,24 @@ Point them at an `https://` deployment; a plain-HTTP dev server will fail to
 connect by design. `proguard-rules.pro` keeps `org.webrtc.**`, which libwebrtc
 calls reflectively from native code — without those rules a minified build fails
 only once a call actually starts.
+
+## The macOS app
+
+```bash
+cd packages/desktop
+npm install
+npm run dist        # → release/Meet-1.0.0-arm64.dmg and Meet-1.0.0.dmg
+```
+
+Apple Silicon Macs want the `-arm64` image, Intel Macs the other. The build is
+unsigned, so the first launch needs **right-click ▸ Open** to get past
+Gatekeeper. Full installation and permission notes are in
+[`packages/desktop/README.md`](packages/desktop/README.md).
+
+The app is the web client in an Electron shell, plus the macOS integration a
+browser tab cannot provide — an app menu, remembered window bounds, and a
+screen-share picker that lists individual windows. On macOS 15+ it defers to the
+system ScreenCaptureKit picker.
 
 ## Deploying
 
