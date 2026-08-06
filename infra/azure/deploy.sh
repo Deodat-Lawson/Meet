@@ -61,6 +61,14 @@ TMP_INIT="$(mktemp)"
 trap 'rm -f "$TMP_INIT"' EXIT
 sed "s|__MEET_DOMAIN__|${FQDN}|g" "${HERE}/cloud-init.yaml" > "$TMP_INIT"
 
+# Validate before handing it to Azure. Invalid cloud-config is not an error the
+# VM reports: cloud-init logs a warning, discards the whole document and boots a
+# bare machine that looks healthy but runs nothing.
+python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$TMP_INIT" || {
+  echo "cloud-init.yaml is not valid YAML after templating — aborting." >&2
+  exit 1
+}
+
 echo "[4/6] creating VM (this provisions and boots; the app builds afterwards)"
 az vm create \
   --resource-group "$RG" \

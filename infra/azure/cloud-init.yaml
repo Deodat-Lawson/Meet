@@ -57,18 +57,18 @@ write_files:
       fi
       . /opt/meet/secrets.env
 
-      cat > repo/infra/.env <<ENVEOF
-PUBLIC_IP=${PUBLIC_IP}
-DOMAIN=${DOMAIN}
-JWT_SECRET=${JWT_SECRET}
-TURN_USERNAME=meet
-TURN_PASSWORD=${TURN_PASSWORD}
-CORS_ORIGINS=https://${DOMAIN}
-ROOM_MAX_PEERS=50
-RECORDING_ENABLED=false
-MEDIASOUP_WORKERS=2
-LOG_LEVEL=info
-ENVEOF
+      printf '%s\n' \
+        "PUBLIC_IP=${PUBLIC_IP}" \
+        "DOMAIN=${DOMAIN}" \
+        "JWT_SECRET=${JWT_SECRET}" \
+        "TURN_USERNAME=meet" \
+        "TURN_PASSWORD=${TURN_PASSWORD}" \
+        "CORS_ORIGINS=https://${DOMAIN}" \
+        "ROOM_MAX_PEERS=50" \
+        "RECORDING_ENABLED=false" \
+        "MEDIASOUP_WORKERS=2" \
+        "LOG_LEVEL=info" \
+        > repo/infra/.env
       chmod 600 repo/infra/.env
 
       cd repo/infra
