@@ -1,0 +1,92 @@
+#cloud-config
+# Provisions the Meet SFU on a fresh Ubuntu VM: Docker, the repo, generated
+# secrets, and the Compose stack (SFU + coturn + Caddy for TLS).
+package_update: true
+package_upgrade: false
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - ufw
+
+write_files:
+  - path: /etc/sysctl.d/99-meet.conf
+    content: |
+      # A busy SFU holds thousands of UDP flows; the defaults are far too small
+      # and manifest as unexplained packet loss rather than an obvious error.
+      net.core.rmem_max = 16777216
+      net.core.wmem_max = 16777216
+      net.core.netdev_max_backlog = 5000
+      net.ipv4.udp_rmem_min = 8192
+      net.ipv4.udp_wmem_min = 8192
+      fs.file-max = 200000
+
+  - path: /opt/meet/domain
+    content: |
+      __MEET_DOMAIN__
+
+  - path: /opt/meet/bootstrap.sh
+    permissions: '0755'
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+      exec > >(tee -a /var/log/meet-bootstrap.log) 2>&1
+      echo "[meet] bootstrap starting $(date -Is)"
+
+      PUBLIC_IP="$(curl -s -H Metadata:true --noproxy '*' \
+        'http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/publicIpAddress?api-version=2021-02-01&format=text')"
+      FQDN="$(curl -s -H Metadata:true --noproxy '*' \
+        'http://169.254.169.254/metadata/instance/compute/name?api-version=2021-02-01&format=text')"
+      DOMAIN="$(tr -d '[:space:]' < /opt/meet/domain 2>/dev/null || echo '')"
+      echo "[meet] public ip=$PUBLIC_IP fqdn=$FQDN domain=$DOMAIN"
+
+      cd /opt/meet
+      if [ ! -d repo/.git ]; then
+        git clone --depth 1 https://github.com/Deodat-Lawson/Meet.git repo
+      else
+        git -C repo fetch --depth 1 origin main && git -C repo reset --hard origin/main
+      fi
+
+      # Secrets are generated on the box and never leave it.
+      if [ ! -f /opt/meet/secrets.env ]; then
+        {
+          echo "JWT_SECRET=$(openssl rand -base64 48 | tr -d '\n')"
+          echo "TURN_PASSWORD=$(openssl rand -base64 24 | tr -d '\n/+=')"
+        } > /opt/meet/secrets.env
+        chmod 600 /opt/meet/secrets.env
+      fi
+      . /opt/meet/secrets.env
+
+      cat > repo/infra/.env <<ENVEOF
+PUBLIC_IP=${PUBLIC_IP}
+DOMAIN=${DOMAIN}
+JWT_SECRET=${JWT_SECRET}
+TURN_USERNAME=meet
+TURN_PASSWORD=${TURN_PASSWORD}
+CORS_ORIGINS=https://${DOMAIN}
+ROOM_MAX_PEERS=50
+RECORDING_ENABLED=false
+MEDIASOUP_WORKERS=2
+LOG_LEVEL=info
+ENVEOF
+      chmod 600 repo/infra/.env
+
+      cd repo/infra
+      docker compose pull --ignore-buildable || true
+      docker compose up -d --build
+      echo "[meet] bootstrap done $(date -Is)"
+
+runcmd:
+  - sysctl --system
+  # Docker from the official repo; Ubuntu's packaged version lags badly.
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+  - >
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc]
+    https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable"
+    > /etc/apt/sources.list.d/docker.list
+  - apt-get update -y
+  - DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  - systemctl enable --now docker
+  - /opt/meet/bootstrap.sh
