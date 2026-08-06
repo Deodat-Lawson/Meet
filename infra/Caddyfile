@@ -1,6 +1,6 @@
 # Terminates TLS with an automatic Let's Encrypt certificate and proxies both the
 # app and the signaling WebSocket to the SFU container.
-{$DOMAIN} {
+{$SITE_ADDRESSES} {
 	encode zstd gzip
 
 	# WebSocket upgrades must not be buffered or the signaling channel stalls.

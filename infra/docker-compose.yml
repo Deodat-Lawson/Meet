@@ -78,6 +78,10 @@ services:
       - '443:443'
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN to the public hostname}
+      # Every hostname this deployment answers on, comma separated. Retiring an
+      # old name silently breaks every link already shared on it, so previous
+      # names stay listed here and keep their certificate.
+      SITE_ADDRESSES: ${SITE_ADDRESSES:-${DOMAIN}}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
