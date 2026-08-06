@@ -396,8 +396,13 @@ textarea {
   gap: 10px;
   width: 100%;
   height: 100%;
-  align-content: center;
-  justify-content: center;
+  /* Rows share the container height rather than being sized by tile content.
+     A grid whose rows are derived from tile aspect-ratio has no knowledge of
+     how tall its container is, and silently overflows once the rows stop
+     fitting — which `.stage`'s `overflow: hidden` then clips. */
+  grid-auto-rows: minmax(0, 1fr);
+  align-content: stretch;
+  justify-content: stretch;
 }
 
 .tile {
@@ -409,6 +414,18 @@ textarea {
   min-width: 0;
   border: 2px solid transparent;
   transition: border-color 150ms ease;
+}
+
+/* In the gallery the grid tracks are already sized in pixels, so the tile must
+   fill its cell. Leaving aspect-ratio on would re-derive height from width and
+   reintroduce the overflow the explicit sizing exists to prevent. */
+.grid .tile {
+  /* Fill the cell the grid allocated; the video's object-fit keeps it looking
+     right when the cell is not exactly 16:9. */
+  aspect-ratio: auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
 .tile.speaking {
@@ -543,6 +560,16 @@ textarea {
   /* contain, never cover: cropping someone's slides is unacceptable. */
   object-fit: contain;
   background: #000;
+}
+
+/* Same failure mode as the gallery: a 16:9 tile taking full width can be taller
+   than the stage, and the overflow is clipped rather than scrolled. Cap both
+   axes and let aspect-ratio scale the tile down to fit. */
+.share-stage > .tile {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .filmstrip {

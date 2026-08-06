@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PeerInfo } from '@meet/protocol';
 import type { RoomClient, RoomState } from '@meet/client-core';
 import { VideoTile } from './VideoTile';
@@ -103,48 +103,99 @@ export function Stage({ client, room }: StageProps) {
   return <GalleryGrid count={allPeers.length}>{allPeers.map((peer) => tileFor(peer))}</GalleryGrid>;
 }
 
+const GRID_GAP = 10;
+const TILE_ASPECT = 16 / 9;
+
 /**
- * Picks the column count that maximises tile area for the current aspect ratio,
- * the same way Zoom's gallery reflows as people join.
+ * Picks the tile arrangement that maximises tile area, the way Zoom's gallery
+ * reflows as people join.
+ *
+ * Both track dimensions are resolved here and written as explicit pixel sizes.
+ * Letting CSS derive row height from `aspect-ratio` on the column width looks
+ * right until the rows no longer fit: nothing in that model is aware of the
+ * container's height, so the grid silently overflows and `.stage`'s
+ * `overflow: hidden` guillotines the bottom row. Sizing both axes from the
+ * measured box makes overflow impossible by construction.
  */
 function GalleryGrid({ count, children }: { count: number; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [columns, setColumns] = useState(1);
+  const [layout, setLayout] = useState({ columns: 1, tileWidth: 0, tileHeight: 0 });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
+    let frame = 0;
 
-    const recompute = () => {
+    const measure = () => {
       const { width, height } = element.getBoundingClientRect();
       if (!width || !height || count === 0) return;
 
-      let best = 1;
-      let bestArea = 0;
-      for (let cols = 1; cols <= count; cols++) {
-        const rows = Math.ceil(count / cols);
-        const gap = 10;
-        const tileW = (width - gap * (cols - 1)) / cols;
-        const tileH = (height - gap * (rows - 1)) / rows;
-        // Tiles are 16:9; the binding dimension decides the usable area.
-        const area = Math.min(tileW, tileH * (16 / 9)) ** 2;
-        if (area > bestArea) {
-          bestArea = area;
-          best = cols;
+      let best = { columns: 1, tileWidth: 0, tileHeight: 0 };
+      for (let columns = 1; columns <= count; columns++) {
+        const rows = Math.ceil(count / columns);
+        const cellWidth = (width - GRID_GAP * (columns - 1)) / columns;
+        const cellHeight = (height - GRID_GAP * (rows - 1)) / rows;
+        if (cellWidth <= 0 || cellHeight <= 0) continue;
+
+        // The largest 16:9 tile that fits this cell on *both* axes.
+        const tileWidth = Math.min(cellWidth, cellHeight * TILE_ASPECT);
+        const tileHeight = tileWidth / TILE_ASPECT;
+        if (tileWidth * tileHeight > best.tileWidth * best.tileHeight) {
+          best = { columns, tileWidth, tileHeight };
         }
       }
-      setColumns(best);
+      if (best.tileWidth <= 0) return;
+
+      // Only commit a real change: re-rendering into an identical layout would
+      // resize tiles, which feeds the observers below straight back into here.
+      setLayout((previous) =>
+        previous.columns === best.columns &&
+        Math.abs(previous.tileWidth - best.tileWidth) < 0.5 &&
+        Math.abs(previous.tileHeight - best.tileHeight) < 0.5
+          ? previous
+          : best,
+      );
     };
 
-    recompute();
-    const observer = new ResizeObserver(recompute);
+    // Deferred to the next frame so geometry is read after layout settles, and
+    // so a burst of resize events collapses into a single measurement. It also
+    // keeps the work out of the ResizeObserver callback itself: resizing tiles
+    // from inside that callback trips Chrome's loop guard, and once tripped it
+    // silently stops delivering notifications — which is exactly how the grid
+    // ended up holding pixel tracks measured at a stale viewport size.
+    const schedule = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+
+    measure();
+    const observer = new ResizeObserver(schedule);
     observer.observe(element);
-    return () => observer.disconnect();
+    // Belt and braces: a dropped observer notification must not leave the grid
+    // permanently mis-sized, and window resize is the case users actually hit.
+    window.addEventListener('resize', schedule);
+    window.addEventListener('orientationchange', schedule);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('orientationchange', schedule);
+    };
   }, [count]);
 
+  // Only the column count comes from JS. Row height is `minmax(0, 1fr)` in CSS,
+  // so however many rows there are they divide the container's height between
+  // them. That is what makes overflow structurally impossible: if this
+  // measurement is ever stale — a dropped ResizeObserver notification, a resize
+  // during a background tab — the tiles come out at a non-ideal aspect ratio
+  // instead of being clipped off the bottom of the stage.
   return (
     <div ref={ref} style={{ width: '100%', height: '100%' }}>
-      <div className="grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+      <div
+        className="grid"
+        style={{ gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))` }}
+      >
         {children}
       </div>
     </div>

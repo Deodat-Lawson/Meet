@@ -12,7 +12,8 @@
     "test": "node --test --import tsx test/*.test.ts",
     "test:e2e": "tsx test/e2e.ts",
     "test:e2e:cross": "tsx test/e2e-cross-platform.ts",
-    "test:e2e:lobby": "tsx test/e2e-lobby.ts"
+    "test:e2e:lobby": "tsx test/e2e-lobby.ts",
+    "test:layout": "tsx test/verify-layout.mts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",

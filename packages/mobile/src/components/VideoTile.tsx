@@ -126,7 +126,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'transparent',
-    minHeight: 100,
+    // No minimum: rows are flex:1, and a floor taller than the available slice
+    // pushes the bottom row off screen once enough people are in the meeting.
+    minHeight: 0,
   },
   tileCompact: {
     minHeight: 0,

@@ -226,6 +226,18 @@ async function main(): Promise<void> {
       assert.ok(error && /already sharing/i.test(error), `expected a busy error, got: ${error}`);
     });
 
+    await check('every tile stays inside the stage while a share is on screen', async () => {
+      const overflow = await bob.page.evaluate(() => {
+        const stage = document.querySelector('.stage')?.getBoundingClientRect();
+        if (!stage) return ['no stage'];
+        return [...document.querySelectorAll('.tile')]
+          .map((t) => t.getBoundingClientRect())
+          .filter((r) => r.bottom > stage.bottom + 1 || r.right > stage.right + 1)
+          .map((r) => `tile bottom=${Math.round(r.bottom)} right=${Math.round(r.right)}`);
+      });
+      assert.deepEqual(overflow, [], `tiles overflow the stage: ${overflow.join('; ')}`);
+    });
+
     await check('stopping the share tears down the remote consumer', async () => {
       await alice.page.evaluate(() => {
         void (window as never as { __meet: { stopScreenShare(): Promise<void> } }).__meet.stopScreenShare();
@@ -236,6 +248,25 @@ async function main(): Promise<void> {
         15_000,
         'the screen consumer to close',
       );
+    });
+
+    await check('the gallery grid fits the stage after the share ends', async () => {
+      // The regression this guards: gallery rows were sized by CSS aspect-ratio
+      // off the column width, so three tiles needed more height than the stage
+      // had and `overflow: hidden` cut the bottom row off behind the controls.
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const report = await bob.page.evaluate(() => {
+        const stage = document.querySelector('.stage')?.getBoundingClientRect();
+        const grid = document.querySelector('.grid')?.getBoundingClientRect();
+        if (!stage || !grid) return { ok: false, why: 'no gallery grid rendered' };
+        const tiles = [...document.querySelectorAll('.tile')].map((t) => t.getBoundingClientRect());
+        const spilling = tiles.filter((r) => r.bottom > stage.bottom + 1 || r.right > stage.right + 1);
+        return {
+          ok: spilling.length === 0 && grid.height <= stage.height + 1,
+          why: `${spilling.length}/${tiles.length} tiles spill; grid ${Math.round(grid.height)}px in stage ${Math.round(stage.height)}px`,
+        };
+      });
+      assert.ok(report.ok, report.why);
     });
 
     /* --------------------------------------------------------- mute/video */

@@ -207,6 +207,7 @@ instances.
 npm run test -w @meet/server            # unit tests
 npm run test:e2e -w @meet/server        # full meeting flow, needs the dev servers running
 npm run test:e2e:lobby -w @meet/server  # waiting room: queue, admit, deny
+npm run test:layout -w @meet/server     # tile layout sweep across sizes and peer counts
 ```
 
 The end-to-end suite drives two real Chrome instances through the real UI against
