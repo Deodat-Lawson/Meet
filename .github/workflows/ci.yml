@@ -96,7 +96,11 @@ jobs:
           node-version: 22
       - run: npm ci
         working-directory: packages/desktop
+      # --noEmit checks types; the compile that actually produces dist/main.js is
+      # separate, and electron-builder packages that output rather than sources.
       - run: npx tsc -p tsconfig.json --noEmit
+        working-directory: packages/desktop
+      - run: npm run build
         working-directory: packages/desktop
       # Packages unsigned; proves the icon, entitlements and builder config are
       # all present and consistent, which a typecheck alone would not catch.
