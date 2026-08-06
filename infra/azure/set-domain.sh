@@ -29,25 +29,41 @@ echo " vm ip  : ${IP}"
 echo "──────────────────────────────────────────────"
 
 echo "[1/4] checking DNS"
-RESOLVED="$(dig +short @1.1.1.1 "$DOMAIN" A | grep -E '^[0-9.]+$' | head -1 || true)"
-if [ -z "$RESOLVED" ]; then
-  cat >&2 <<EOF
+cat <<EOF
 
-  ${DOMAIN} does not resolve yet.
+  The record this needs, at Namecheap ▸ Domain List ▸ Manage ▸ Advanced DNS:
 
-  Add this record at your DNS provider, wait for it to propagate, then re-run:
-
-      Type   Name                 Value
-      A      ${DOMAIN%%.*}$([ "${DOMAIN%%.*}" = "$DOMAIN" ] && echo " (or @)")        ${IP}
+      Type   Host                 Value            TTL
+      A      ${DOMAIN%%.*}$([ "${DOMAIN%%.*}" = "$DOMAIN" ] && echo " (use @)")        ${IP}      Automatic
 
 EOF
-  exit 1
-fi
-if [ "$RESOLVED" != "$IP" ]; then
-  echo "  ${DOMAIN} resolves to ${RESOLVED}, but the VM is ${IP}." >&2
-  echo "  Fix the A record before continuing — Let's Encrypt will fail otherwise." >&2
-  exit 1
-fi
+
+# Waits rather than failing, so this can be started the moment the record is
+# saved. Propagation is usually a few minutes but the TTL on a negative answer
+# can hold it longer, hence the generous ceiling.
+DEADLINE=$(( $(date +%s) + ${DNS_WAIT_SECONDS:-1800} ))
+RESOLVED=""
+while :; do
+  RESOLVED="$(dig +short @1.1.1.1 "$DOMAIN" A | grep -E '^[0-9.]+$' | head -1 || true)"
+  [ "$RESOLVED" = "$IP" ] && break
+
+  if [ -n "$RESOLVED" ] && [ "$RESOLVED" != "$IP" ]; then
+    echo "  ${DOMAIN} resolves to ${RESOLVED}, but the VM is ${IP}." >&2
+    echo "  Correct the A record — a certificate request against the wrong host fails" >&2
+    echo "  and Let's Encrypt then rate-limits retries." >&2
+    exit 1
+  fi
+
+  if [ "$(date +%s)" -ge "$DEADLINE" ]; then
+    echo "  ${DOMAIN} still does not resolve. Check the record was saved," >&2
+    echo "  and that the domain uses Namecheap BasicDNS rather than custom nameservers." >&2
+    exit 1
+  fi
+
+  printf "\r  waiting for DNS to propagate… %ds elapsed" "$(( $(date +%s) - (DEADLINE - ${DNS_WAIT_SECONDS:-1800}) ))"
+  sleep 15
+done
+printf "\r"
 echo "  ${DOMAIN} -> ${IP}  ✓"
 
 echo "[2/4] updating the deployment"
