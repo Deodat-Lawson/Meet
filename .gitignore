@@ -36,3 +36,9 @@ packages/web/vite.config.d.ts.map
 packages/desktop/dist/
 packages/desktop/release/
 packages/desktop/node_modules/
+
+# ...but packages/desktop/build holds packaging *inputs* — the icon artwork, the
+# generated .icns and the hardened-runtime entitlements. The blanket `build/`
+# rule above hides them, and without them a fresh clone cannot package the app.
+!packages/desktop/build/
+!packages/desktop/build/**
