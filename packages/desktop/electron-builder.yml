@@ -34,7 +34,10 @@ mac:
   identity: null
 
 dmg:
-  title: "Meet ${version}"
+  # No space: the volume mounts at /Volumes/<title>, and electron-builder does
+  # not quote that path when it calls `hdiutil detach`, so a space makes the
+  # detach fail and takes the whole build with it.
+  title: "Meet-${version}"
   icon: build/icon.icns
   contents:
     - x: 140
