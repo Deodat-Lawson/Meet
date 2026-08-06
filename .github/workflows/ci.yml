@@ -102,15 +102,32 @@ jobs:
         working-directory: packages/desktop
       - run: npm run build
         working-directory: packages/desktop
-      # Packages unsigned; proves the icon, entitlements and builder config are
-      # all present and consistent, which a typecheck alone would not catch.
-      - run: npx electron-builder --mac --arm64 --publish never
+      # Builds the .app bundle but not the DMG. GitHub's hosted macOS runners
+      # cannot create mount points under /Volumes ("mkdir: permission denied"),
+      # so hdiutil — and therefore DMG packaging — cannot run there. The bundle
+      # is what carries the icon, entitlements and Info.plist, so this still
+      # catches every packaging regression that matters; the DMG is produced at
+      # release time on a real Mac via `npm run dist`.
+      - run: npx electron-builder --mac --arm64 --dir --publish never
         working-directory: packages/desktop
-      - run: ls -lh packages/desktop/release/*.dmg
+
+      - name: Verify the app bundle is complete
+        working-directory: packages/desktop
+        run: |
+          APP=release/mac-arm64/Meet.app
+          test -x "$APP/Contents/MacOS/Meet"        || { echo "missing executable"; exit 1; }
+          test -f "$APP/Contents/Resources/icon.icns" || { echo "missing icon"; exit 1; }
+          for key in NSCameraUsageDescription NSMicrophoneUsageDescription NSScreenCaptureUsageDescription; do
+            plutil -extract "$key" raw "$APP/Contents/Info.plist" >/dev/null \
+              || { echo "Info.plist is missing $key — media would fail silently at runtime"; exit 1; }
+          done
+          echo "bundle OK: $(plutil -extract CFBundleIdentifier raw "$APP/Contents/Info.plist") \
+            $(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")"
+
       - uses: actions/upload-artifact@v4
         with:
-          name: Meet-macOS-arm64
-          path: packages/desktop/release/*.dmg
+          name: Meet-macOS-arm64-app
+          path: packages/desktop/release/mac-arm64/Meet.app
           if-no-files-found: error
 
   android:
