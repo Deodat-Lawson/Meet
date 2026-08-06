@@ -22,7 +22,7 @@ import {
 import path from 'node:path';
 import fs from 'node:fs';
 
-const DEFAULT_SERVER = 'https://meet-41e9753c.japaneast.cloudapp.azure.com';
+const DEFAULT_SERVER = 'https://meet.hide-me.online';
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 
 interface Settings {

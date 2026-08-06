@@ -58,7 +58,7 @@ launch. The app detects this and offers to open the right settings pane:
 
 ## Using it
 
-The app points at the hosted server by default. To change it — for a local dev
+The app points at `https://meet.hide-me.online` by default. To change it — for a local dev
 stack, or your own deployment — use **Meet ▸ Server Address…** (`⌘,`). The choice
 persists across launches.
 
