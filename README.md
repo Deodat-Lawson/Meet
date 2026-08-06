@@ -213,6 +213,37 @@ browser tab cannot provide — an app menu, remembered window bounds, and a
 screen-share picker that lists individual windows. On macOS 15+ it defers to the
 system ScreenCaptureKit picker.
 
+## Using your own domain
+
+The deployment gets a working `*.cloudapp.azure.com` hostname with a real
+certificate out of the box, so a custom domain is cosmetic rather than required.
+To use one:
+
+1. **Own a domain.** Any registrar works — Cloudflare and Porkbun are around
+   $6–12/year for a `.com`. Nothing needs to be bought through Azure; the
+   registrar's own free DNS is enough, and an Azure DNS zone would add $0.50/mo
+   for no benefit here.
+2. **Point it at the VM.** One record at your registrar:
+
+   | Type | Name | Value |
+   | --- | --- | --- |
+   | A | `meet` (or `@` for the root) | the VM's public IP |
+
+3. **Switch the deployment over:**
+
+   ```bash
+   cd infra/azure
+   ./set-domain.sh meet.yourdomain.com
+   ```
+
+The script refuses to run until DNS actually resolves to the VM, because
+Let's Encrypt validates over HTTP on port 80 — firing the request early gets the
+certificate rejected and then rate-limited for a while. Once DNS is right it
+rewrites the deployment's domain, restarts the proxy, waits for the certificate
+and confirms the app is serving on the new name.
+
+`AAAA` records are not needed: the VM is IPv4-only.
+
 ## Deploying
 
 ```bash
