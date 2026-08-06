@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 build-essential ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# The e2e suite depends on puppeteer, which downloads a ~150MB Chrome on install.
+# A server image must never carry a test browser, and the download fails here
+# anyway because the slim base has no unzip.
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+
 COPY package.json package-lock.json* ./
 COPY packages/protocol/package.json packages/protocol/
 COPY packages/client-core/package.json packages/client-core/
