@@ -114,8 +114,10 @@ jobs:
       - name: Verify the app bundle is complete
         working-directory: packages/desktop
         run: |
-          APP=release/mac-arm64/Meet.app
-          test -x "$APP/Contents/MacOS/Meet"        || { echo "missing executable"; exit 1; }
+          # The bundle is named after electron-builder's productName, spaces and
+          # all, so every path below has to stay quoted.
+          APP="release/mac-arm64/Team Studio.app"
+          test -x "$APP/Contents/MacOS/Team Studio" || { echo "missing executable"; exit 1; }
           test -f "$APP/Contents/Resources/icon.icns" || { echo "missing icon"; exit 1; }
           for key in NSCameraUsageDescription NSMicrophoneUsageDescription NSScreenCaptureUsageDescription; do
             plutil -extract "$key" raw "$APP/Contents/Info.plist" >/dev/null \
@@ -126,8 +128,8 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Meet-macOS-arm64-app
-          path: packages/desktop/release/mac-arm64/Meet.app
+          name: TeamStudio-macOS-arm64-app
+          path: packages/desktop/release/mac-arm64/Team Studio.app
           if-no-files-found: error
 
   android:

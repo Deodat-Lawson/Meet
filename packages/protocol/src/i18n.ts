@@ -26,8 +26,8 @@ export const DEFAULT_LOCALE: Locale = 'en';
 
 const en = {
   /* -------------------------------------------------------------- branding */
-  'app.name': 'Hide Me',
-  'app.description': 'Hide Me — private video meetings. No account, no tracking, nothing stored.',
+  'app.name': 'Team Studio',
+  'app.description': 'Team Studio — private video meetings. No account, no tracking, nothing stored.',
 
   /* --------------------------------------------------------------- privacy
    * Every line below is a property of the running system that can be checked,
@@ -85,7 +85,7 @@ const en = {
   'home.createFailed': 'Could not create the meeting.',
   'home.enterCode': 'Enter a meeting code or link.',
   'home.hint':
-    'Works in Chrome, Edge, Firefox and Safari, and in the Hide Me apps for macOS and Android. Screen sharing needs a desktop browser or one of the apps.',
+    'Works in Chrome, Edge, Firefox and Safari, and in the Team Studio apps for macOS and Android. Screen sharing needs a desktop browser or one of the apps.',
 
   /* --------------------------------------------------------------- prejoin */
   'prejoin.title': 'Ready to join?',
@@ -350,8 +350,8 @@ export type MessageKey = keyof typeof en;
 
 const zh: Record<MessageKey, string> = {
   /* -------------------------------------------------------------- branding */
-  'app.name': 'Hide Me',
-  'app.description': 'Hide Me —— 私密视频会议。无需账号，不做追踪，不留记录。',
+  'app.name': 'Team Studio',
+  'app.description': 'Team Studio —— 私密视频会议。无需账号，不做追踪，不留记录。',
 
   'privacy.heading': '本服务能做什么，不能做什么',
   'privacy.noAccounts.title': '无需账号',
@@ -404,7 +404,7 @@ const zh: Record<MessageKey, string> = {
   'home.createFailedRetry': '无法创建会议，请重试。',
   'home.createFailed': '无法创建会议。',
   'home.enterCode': '请输入会议号或会议链接。',
-  'home.hint': '支持 Chrome、Edge、Firefox 和 Safari 浏览器，以及 Hide Me 的 macOS 与安卓应用。屏幕共享需要在桌面浏览器或客户端应用中使用。',
+  'home.hint': '支持 Chrome、Edge、Firefox 和 Safari 浏览器，以及 Team Studio 的 macOS 与安卓应用。屏幕共享需要在桌面浏览器或客户端应用中使用。',
 
   /* --------------------------------------------------------------- prejoin */
   'prejoin.title': '准备好加入了吗？',

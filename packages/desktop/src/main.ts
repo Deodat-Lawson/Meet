@@ -22,7 +22,7 @@ import {
 import path from 'node:path';
 import fs from 'node:fs';
 
-const DEFAULT_SERVER = 'https://meet.hide-me.online';
+const DEFAULT_SERVER = 'https://meet.team-studio.space';
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 
 interface Settings {
@@ -109,8 +109,8 @@ function createWindow(): void {
     if (code === -3) return; // aborted by a redirect, not a real failure
     void dialog.showMessageBox({
       type: 'error',
-      message: 'Could not reach the Hide Me server',
-      detail: `${failedUrl}\n\n${description} (${code})\n\nCheck the server address in Hide Me ▸ Settings, or your network connection.`,
+      message: 'Could not reach the Team Studio server',
+      detail: `${failedUrl}\n\n${description} (${code})\n\nCheck the server address in Team Studio ▸ Settings, or your network connection.`,
       buttons: ['OK'],
     });
   });
@@ -304,7 +304,7 @@ function buildMenu(): void {
 async function promptForServer(): Promise<void> {
   const result = await dialog.showMessageBox({
     type: 'question',
-    message: 'Hide Me server address',
+    message: 'Team Studio server address',
     detail: `Currently: ${settings.serverUrl}\n\nChoose "Use Default" for the hosted server, or "Use Localhost" when running the stack on this machine.`,
     buttons: ['Cancel', 'Use Default', 'Use Localhost'],
     defaultId: 1,
@@ -333,7 +333,7 @@ async function checkScreenPermission(interactive: boolean): Promise<void> {
       await dialog.showMessageBox({
         type: 'info',
         message: 'Screen recording is allowed',
-        detail: 'Hide Me can share your screen.',
+        detail: 'Team Studio can share your screen.',
         buttons: ['OK'],
       });
     }
@@ -344,7 +344,7 @@ async function checkScreenPermission(interactive: boolean): Promise<void> {
     message: 'Screen recording permission needed',
     detail:
       'macOS requires explicit permission before an app can share your screen.\n\n' +
-      'Open System Settings ▸ Privacy & Security ▸ Screen & System Audio Recording, enable Hide Me, then quit and reopen the app.',
+      'Open System Settings ▸ Privacy & Security ▸ Screen & System Audio Recording, enable Team Studio, then quit and reopen the app.',
     buttons: ['Open System Settings', 'Later'],
     defaultId: 0,
   });

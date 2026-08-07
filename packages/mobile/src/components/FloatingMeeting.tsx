@@ -36,7 +36,7 @@ interface FloatingMeetingProps {
 /**
  * The meeting, collapsed into a window you can push around the screen.
  *
- * This is the in-app half of minimising: the rest of Hide Me is in front, the
+ * This is the in-app half of minimising: the rest of Team Studio is in front, the
  * call is untouched behind it, and the window is a live view of the same
  * connection rather than a snapshot of it. Nothing is written down for it to
  * work — collapse it, walk away, come back, and it is the same call because it

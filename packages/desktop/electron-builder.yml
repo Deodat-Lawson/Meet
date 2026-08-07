@@ -1,6 +1,6 @@
-appId: online.hideme.desktop
-productName: Hide Me
-copyright: Hide Me
+appId: space.teamstudio.desktop
+productName: Team Studio
+copyright: Team Studio
 
 directories:
   output: release
@@ -25,9 +25,9 @@ mac:
   # declares why it wants them. Without these the app launches and every
   # media call fails silently.
   extendInfo:
-    NSCameraUsageDescription: Hide Me uses your camera so other participants can see you.
-    NSMicrophoneUsageDescription: Hide Me uses your microphone so other participants can hear you.
-    NSScreenCaptureUsageDescription: Hide Me captures your screen when you choose to share it in a meeting.
+    NSCameraUsageDescription: Team Studio uses your camera so other participants can see you.
+    NSMicrophoneUsageDescription: Team Studio uses your microphone so other participants can hear you.
+    NSScreenCaptureUsageDescription: Team Studio captures your screen when you choose to share it in a meeting.
     LSMinimumSystemVersion: "11.0"
   # No Developer ID in this environment; produce an unsigned build rather than
   # failing. Set CSC_LINK/CSC_KEY_PASSWORD to sign.
@@ -37,7 +37,7 @@ dmg:
   # No space: the volume mounts at /Volumes/<title>, and electron-builder does
   # not quote that path when it calls `hdiutil detach`, so a space makes the
   # detach fail and takes the whole build with it.
-  title: "HideMe-${version}"
+  title: "TeamStudio-${version}"
   icon: build/icon.icns
   contents:
     - x: 140
