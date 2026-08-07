@@ -61,10 +61,16 @@ write_files:
       # Every name this deployment answers on, not just the current one. A
       # hostname that survives only in the generated .env would be retired by
       # this very script the next time it runs.
-      SITE_ADDRESSES="$(tr -d '[:space:]' < /opt/meet/site-addresses 2>/dev/null || echo '')"
-      [ -n "$SITE_ADDRESSES" ] || SITE_ADDRESSES="$DOMAIN"
-      CORS_ORIGINS="$(echo "$SITE_ADDRESSES" | tr ',' '\n' | sed 's|^|https://|' | paste -sd, -)"
-      echo "[meet] public ip=$PUBLIC_IP fqdn=$FQDN domain=$DOMAIN serving=$SITE_ADDRESSES"
+      #
+      # Caddy separates site addresses with whitespace and refuses a bare comma
+      # outright — it will not start, so a stray comma here takes the whole site
+      # down rather than degrading it. Commas in the file are accepted and
+      # normalised away; CORS wants them back, without the spaces.
+      SITES="$(tr ',' ' ' < /opt/meet/site-addresses 2>/dev/null | xargs || echo '')"
+      [ -n "$SITES" ] || SITES="$DOMAIN"
+      SITE_ADDRESSES="$SITES"
+      CORS_ORIGINS="$(printf '%s\n' $SITES | sed 's|^|https://|' | paste -sd, -)"
+      echo "[meet] public ip=$PUBLIC_IP fqdn=$FQDN domain=$DOMAIN serving='$SITE_ADDRESSES'"
 
       cd /opt/meet
       if [ ! -d repo/.git ]; then

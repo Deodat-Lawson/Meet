@@ -78,9 +78,13 @@ services:
       - '443:443'
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN to the public hostname}
-      # Every hostname this deployment answers on, comma separated. Retiring an
-      # old name silently breaks every link already shared on it, so previous
-      # names stay listed here and keep their certificate.
+      # Every hostname this deployment answers on, separated by whitespace —
+      # Caddy rejects a bare comma and refuses to start at all, so this is one
+      # of the few settings where a typo takes the site down rather than
+      # degrading it. Retiring an old name silently breaks every link already
+      # shared on it, so previous names stay listed here and keep their
+      # certificate. The list is kept in /opt/meet/site-addresses on the VM,
+      # because the bootstrap rewrites this file's .env from scratch.
       SITE_ADDRESSES: ${SITE_ADDRESSES:-${DOMAIN}}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

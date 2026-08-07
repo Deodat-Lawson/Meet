@@ -70,18 +70,24 @@ echo "[2/4] updating the deployment"
 # The old name is kept, not replaced. Every link already shared on it — in a
 # calendar invite, in a chat, in someone's history — points at a hostname that
 # would otherwise stop resolving to anything the moment the domain changes.
+# Site addresses are whitespace separated because Caddy refuses a bare comma —
+# it exits rather than starts, so the mistake costs the whole site. `.env` is
+# root-owned, so every read of it needs sudo too: a plain `grep` here fails
+# silently and appends a second SITE_ADDRESSES line on every run.
 ssh -o StrictHostKeyChecking=no "${ADMIN_USER}@${IP}" "
   set -e
   cd /opt/meet/repo/infra
-  PREVIOUS=\"\$(tr -d '[:space:]' < /opt/meet/site-addresses 2>/dev/null || tr -d '[:space:]' < /opt/meet/domain 2>/dev/null || echo '')\"
-  SITES=\"\$(printf '%s\n%s\n' '${DOMAIN}' \"\$PREVIOUS\" | tr ',' '\n' | sed '/^\$/d' | awk '!seen[\$0]++' | paste -sd, -)\"
-  CORS=\"\$(echo \"\$SITES\" | tr ',' '\n' | sed 's|^|https://|' | paste -sd, -)\"
+  PREVIOUS=\"\$( { sudo cat /opt/meet/site-addresses 2>/dev/null || sudo cat /opt/meet/domain 2>/dev/null; } | tr ',' ' ' | xargs || echo '')\"
+  SITES=\"\$(printf '%s %s' '${DOMAIN}' \"\$PREVIOUS\" | tr ' ' '\n' | sed '/^\$/d' | awk '!seen[\$0]++' | paste -sd' ' -)\"
+  CORS=\"\$(printf '%s\n' \$SITES | sed 's|^|https://|' | paste -sd, -)\"
   echo \"  serving: \$SITES\"
   sudo sed -i \"s|^DOMAIN=.*|DOMAIN=${DOMAIN}|\" .env
   sudo sed -i \"s|^CORS_ORIGINS=.*|CORS_ORIGINS=\$CORS|\" .env
-  grep -q '^SITE_ADDRESSES=' .env \
-    && sudo sed -i \"s|^SITE_ADDRESSES=.*|SITE_ADDRESSES=\$SITES|\" .env \
-    || echo \"SITE_ADDRESSES=\$SITES\" | sudo tee -a .env >/dev/null
+  if sudo grep -q '^SITE_ADDRESSES=' .env; then
+    sudo sed -i \"s|^SITE_ADDRESSES=.*|SITE_ADDRESSES=\$SITES|\" .env
+  else
+    echo \"SITE_ADDRESSES=\$SITES\" | sudo tee -a .env >/dev/null
+  fi
   echo '${DOMAIN}' | sudo tee /opt/meet/domain >/dev/null
   echo \"\$SITES\" | sudo tee /opt/meet/site-addresses >/dev/null
   sudo docker compose up -d --force-recreate caddy meet
