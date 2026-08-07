@@ -25,6 +25,15 @@ write_files:
     content: |
       __MEET_DOMAIN__
 
+  # Every hostname this deployment answers on, comma separated — the current
+  # domain plus any it used to be reached by. It lives here, next to the domain,
+  # rather than only in the generated .env, because the bootstrap rewrites that
+  # file from scratch every run: a name kept only there is retired by the next
+  # deploy, and every link already shared on it breaks silently.
+  - path: /opt/meet/site-addresses
+    content: |
+      __MEET_DOMAIN__
+
   - path: /opt/meet/bootstrap.sh
     permissions: '0755'
     content: |
@@ -49,7 +58,13 @@ write_files:
       FQDN="$(curl -s -H Metadata:true --noproxy '*' \
         'http://169.254.169.254/metadata/instance/compute/name?api-version=2021-02-01&format=text')"
       DOMAIN="$(tr -d '[:space:]' < /opt/meet/domain 2>/dev/null || echo '')"
-      echo "[meet] public ip=$PUBLIC_IP fqdn=$FQDN domain=$DOMAIN"
+      # Every name this deployment answers on, not just the current one. A
+      # hostname that survives only in the generated .env would be retired by
+      # this very script the next time it runs.
+      SITE_ADDRESSES="$(tr -d '[:space:]' < /opt/meet/site-addresses 2>/dev/null || echo '')"
+      [ -n "$SITE_ADDRESSES" ] || SITE_ADDRESSES="$DOMAIN"
+      CORS_ORIGINS="$(echo "$SITE_ADDRESSES" | tr ',' '\n' | sed 's|^|https://|' | paste -sd, -)"
+      echo "[meet] public ip=$PUBLIC_IP fqdn=$FQDN domain=$DOMAIN serving=$SITE_ADDRESSES"
 
       cd /opt/meet
       if [ ! -d repo/.git ]; then
@@ -71,10 +86,11 @@ write_files:
       printf '%s\n' \
         "PUBLIC_IP=${PUBLIC_IP}" \
         "DOMAIN=${DOMAIN}" \
+        "SITE_ADDRESSES=${SITE_ADDRESSES}" \
         "JWT_SECRET=${JWT_SECRET}" \
         "TURN_USERNAME=meet" \
         "TURN_PASSWORD=${TURN_PASSWORD}" \
-        "CORS_ORIGINS=https://${DOMAIN}" \
+        "CORS_ORIGINS=${CORS_ORIGINS}" \
         "ROOM_MAX_PEERS=50" \
         "RECORDING_ENABLED=false" \
         "MEDIASOUP_WORKERS=2" \

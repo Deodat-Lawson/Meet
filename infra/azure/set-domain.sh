@@ -67,12 +67,23 @@ printf "\r"
 echo "  ${DOMAIN} -> ${IP}  ✓"
 
 echo "[2/4] updating the deployment"
+# The old name is kept, not replaced. Every link already shared on it — in a
+# calendar invite, in a chat, in someone's history — points at a hostname that
+# would otherwise stop resolving to anything the moment the domain changes.
 ssh -o StrictHostKeyChecking=no "${ADMIN_USER}@${IP}" "
   set -e
   cd /opt/meet/repo/infra
-  sudo sed -i 's|^DOMAIN=.*|DOMAIN=${DOMAIN}|' .env
-  sudo sed -i 's|^CORS_ORIGINS=.*|CORS_ORIGINS=https://${DOMAIN}|' .env
+  PREVIOUS=\"\$(tr -d '[:space:]' < /opt/meet/site-addresses 2>/dev/null || tr -d '[:space:]' < /opt/meet/domain 2>/dev/null || echo '')\"
+  SITES=\"\$(printf '%s\n%s\n' '${DOMAIN}' \"\$PREVIOUS\" | tr ',' '\n' | sed '/^\$/d' | awk '!seen[\$0]++' | paste -sd, -)\"
+  CORS=\"\$(echo \"\$SITES\" | tr ',' '\n' | sed 's|^|https://|' | paste -sd, -)\"
+  echo \"  serving: \$SITES\"
+  sudo sed -i \"s|^DOMAIN=.*|DOMAIN=${DOMAIN}|\" .env
+  sudo sed -i \"s|^CORS_ORIGINS=.*|CORS_ORIGINS=\$CORS|\" .env
+  grep -q '^SITE_ADDRESSES=' .env \
+    && sudo sed -i \"s|^SITE_ADDRESSES=.*|SITE_ADDRESSES=\$SITES|\" .env \
+    || echo \"SITE_ADDRESSES=\$SITES\" | sudo tee -a .env >/dev/null
   echo '${DOMAIN}' | sudo tee /opt/meet/domain >/dev/null
+  echo \"\$SITES\" | sudo tee /opt/meet/site-addresses >/dev/null
   sudo docker compose up -d --force-recreate caddy meet
 "
 
