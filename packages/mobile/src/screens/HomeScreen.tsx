@@ -17,7 +17,20 @@ import { LanguageToggle } from '../components/LanguageToggle';
 import { t as translateNow, useT, useTranslatable, type TranslatableText } from '../i18n';
 import { getServerConfig, getServerUrl, setServerUrl } from '../config';
 
-export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => void }) {
+export function HomeScreen({
+  onOpenRoom,
+  /**
+   * Set while a meeting is running behind the floating window. Starting a
+   * second one would silently drop the first, so the way back is offered
+   * instead of the way in.
+   */
+  meetingInProgress = false,
+  onReturnToMeeting,
+}: {
+  onOpenRoom: (roomId: string) => void;
+  meetingInProgress?: boolean;
+  onReturnToMeeting?: () => void;
+}) {
   const t = useT();
   const text = useTranslatable();
   const [joinCode, setJoinCode] = useState('');
@@ -76,13 +89,29 @@ export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => voi
             <LanguageToggle />
           </View>
 
+          {meetingInProgress && (
+            <TouchableOpacity
+              style={styles.ongoing}
+              onPress={onReturnToMeeting}
+              accessibilityRole="button"
+              accessibilityLabel={t('mini.returnToMeeting')}
+            >
+              <View style={styles.ongoingDot} />
+              <View style={styles.flex}>
+                <Text style={styles.ongoingTitle}>{t('mini.inAMeeting')}</Text>
+                <Text style={styles.ongoingText}>{t('mini.tapToReturn')}</Text>
+              </View>
+              <Text style={styles.ongoingAction}>{t('mini.returnToMeeting')}</Text>
+            </TouchableOpacity>
+          )}
+
           <Text style={styles.title}>{t('home.title')}</Text>
           <Text style={styles.subtitle}>{t('mobile.homeSubtitle')}</Text>
 
           <TouchableOpacity
-            style={[styles.button, styles.buttonPrimary]}
+            style={[styles.button, styles.buttonPrimary, meetingInProgress && styles.buttonDisabled]}
             onPress={createMeeting}
-            disabled={creating}
+            disabled={creating || meetingInProgress}
             accessibilityRole="button"
           >
             {creating ? (
@@ -110,8 +139,13 @@ export function HomeScreen({ onOpenRoom }: { onOpenRoom: (roomId: string) => voi
               autoCorrect={false}
               onSubmitEditing={joinMeeting}
               returnKeyType="go"
+              editable={!meetingInProgress}
             />
-            <TouchableOpacity style={styles.button} onPress={joinMeeting} disabled={!joinCode.trim()}>
+            <TouchableOpacity
+              style={[styles.button, meetingInProgress && styles.buttonDisabled]}
+              onPress={joinMeeting}
+              disabled={!joinCode.trim() || meetingInProgress}
+            >
               <Text style={styles.buttonText}>{t('home.join')}</Text>
             </TouchableOpacity>
           </View>
@@ -185,6 +219,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: { color: colors.text, fontSize: 15, fontWeight: '600' },
+  buttonDisabled: { opacity: 0.4 },
   buttonPrimary: { backgroundColor: colors.accent },
   buttonPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginVertical: spacing.lg },
@@ -201,6 +236,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  ongoing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(107,77,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(107,77,255,0.4)',
+  },
+  ongoingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  ongoingTitle: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  ongoingText: { color: colors.textDim, fontSize: 12.5, marginTop: 1 },
+  ongoingAction: { color: colors.accentHover, fontSize: 13, fontWeight: '600' },
   serverToggle: { marginTop: spacing.lg, alignItems: 'center' },
   serverToggleText: { color: colors.textFaint, fontSize: 13 },
   serverBox: {

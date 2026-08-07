@@ -324,6 +324,24 @@ const en = {
   'mobile.videoStopped': 'Video stopped',
   'mobile.shareStopped': 'Share stopped',
   'mobile.removed': 'Removed',
+
+  /* ------------------------------------------------------------ minimizing
+   * The floating window, the system Picture-in-Picture window and the ongoing
+   * notification are three views of one idea: the meeting keeps running while
+   * you are somewhere else. Nothing here is written down anywhere — the window
+   * is a live view of the same connection, and it disappears with it. */
+  'mini.minimize': 'Minimize',
+  'mini.returnToMeeting': 'Return to meeting',
+  'mini.inAMeeting': 'You are in a meeting',
+  'mini.tapToReturn': 'Tap the window to come back',
+  'mini.hint': 'The meeting keeps running. Tap the small window to come back.',
+  'mini.window': 'Meeting, minimized',
+  'mini.expand': 'Expand',
+  'mini.pipUnavailable': 'This phone does not support a floating window over other apps.',
+  'mini.notificationTitle': 'Meeting in progress',
+  'mini.notificationBody': 'Tap to return to the meeting.',
+  'mini.notificationChannel': 'Ongoing meeting',
+  'mini.notificationChannelBody': 'Shows that a meeting is still running while you are in another app.',
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -622,6 +640,20 @@ const zh: Record<MessageKey, string> = {
   'mobile.videoStopped': '已停止视频',
   'mobile.shareStopped': '已停止共享',
   'mobile.removed': '已移出会议',
+
+  /* ------------------------------------------------------------------ 小窗 */
+  'mini.minimize': '最小化',
+  'mini.returnToMeeting': '返回会议',
+  'mini.inAMeeting': '你正在会议中',
+  'mini.tapToReturn': '点击小窗即可返回',
+  'mini.hint': '会议仍在继续。点击小窗即可返回。',
+  'mini.window': '会议小窗',
+  'mini.expand': '展开',
+  'mini.pipUnavailable': '此设备不支持在其他应用之上显示小窗。',
+  'mini.notificationTitle': '会议进行中',
+  'mini.notificationBody': '点击返回会议。',
+  'mini.notificationChannel': '进行中的会议',
+  'mini.notificationChannelBody': '在你使用其他应用时，提示会议仍在进行。',
 };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, zh };

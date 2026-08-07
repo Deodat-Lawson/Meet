@@ -116,6 +116,14 @@ export const CloseIcon = ({ size = 20, color = colors.text }: IconProps) => (
   </Svg>
 );
 
+/** Collapses the meeting: a window shrinking into the corner it lands in. */
+export const MinimizeIcon = ({ size = 20, color = colors.text }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24">
+    <Rect {...stroke(color)} x={3} y={4} width={18} height={16} rx={2.5} />
+    <Rect {...stroke(color)} x={12} y={13} width={7} height={5} rx={1.5} />
+  </Svg>
+);
+
 export const SendIcon = ({ size = 20, color = colors.text }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path {...stroke(color)} d="m22 2-7 20-4-9-9-4Z" />

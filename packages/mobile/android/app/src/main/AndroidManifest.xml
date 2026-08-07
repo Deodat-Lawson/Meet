@@ -45,7 +45,9 @@
         android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density|navigation"
         android:launchMode="singleTask"
         android:windowSoftInputMode="adjustResize"
-        android:exported="true">
+        android:exported="true"
+        android:resizeableActivity="true"
+        android:supportsPictureInPicture="true">
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
@@ -59,5 +61,14 @@
             <data android:scheme="meet" />
         </intent-filter>
       </activity>
+
+      <!-- Holds the process in the foreground for the length of a call, so the
+           microphone keeps working once the meeting is only a small window —
+           or no window at all. Not exported: nothing outside the app has any
+           business starting a meeting's notification. -->
+      <service
+        android:name=".OngoingCallService"
+        android:exported="false"
+        android:foregroundServiceType="microphone" />
     </application>
 </manifest>

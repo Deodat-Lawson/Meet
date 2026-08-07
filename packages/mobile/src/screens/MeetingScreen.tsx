@@ -1,27 +1,67 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  PixelRatio,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+  type View as ViewType,
+} from 'react-native';
 import type { MediaStream } from 'react-native-webrtc';
-import { formatDuration, type PeerInfo } from '@meet/protocol';
+import { formatDuration, type PeerInfo, type ProducerSource } from '@meet/protocol';
 import { absoluteFill, colors, radius, spacing } from '../theme';
 import { VideoTile } from '../components/VideoTile';
 import { ControlBar } from '../components/ControlBar';
 import { ParticipantsSheet } from '../components/ParticipantsSheet';
 import { ChatSheet } from '../components/ChatSheet';
 import { LanguageToggle } from '../components/LanguageToggle';
+import { MinimizeIcon } from '../components/Icons';
 import { useT } from '../i18n';
+import { pictureInPicture } from '../native/pictureInPicture';
+import { pickSpotlight } from '../spotlight';
 import { useRoomStore } from '../store/roomStore';
 
-export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: () => void }) {
+export function MeetingScreen({
+  roomId,
+  startedAt,
+  onLeave,
+  onMinimize,
+  onSpotlightVideoSize,
+}: {
+  roomId: string;
+  /** When the call began, so the timer survives being collapsed and restored. */
+  startedAt: number;
+  onLeave: () => void;
+  onMinimize: () => void;
+  /** Proportions of the video a small window would show, if it opened now. */
+  onSpotlightVideoSize?: (width: number, height: number) => void;
+}) {
   const { client, room, panel, reactions, leave } = useRoomStore();
   const t = useT();
   const { width, height } = useWindowDimensions();
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(() => Date.now() - startedAt);
 
   useEffect(() => {
-    const started = Date.now();
-    const timer = setInterval(() => setElapsed(Date.now() - started), 1000);
+    const timer = setInterval(() => setElapsed(Date.now() - startedAt), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [startedAt]);
+
+  /**
+   * Tells the platform where the video is on screen, so shrinking the meeting
+   * into its window is one continuous movement out of the stage rather than a
+   * cross-fade between two unrelated pictures.
+   */
+  const stageRef = useRef<ViewType>(null);
+  const reportStageRect = () => {
+    stageRef.current?.measureInWindow((x, y, stageWidth, stageHeight) => {
+      if (!stageWidth || !stageHeight) return;
+      const toPixels = (value: number) => PixelRatio.getPixelSizeForLayoutSize(value);
+      pictureInPicture.setSourceRect(toPixels(x), toPixels(y), toPixels(stageWidth), toPixels(stageHeight));
+    });
+  };
 
   const self = room?.self;
   const allPeers = useMemo<PeerInfo[]>(() => {
@@ -68,9 +108,25 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
 
   const isLandscape = width > height;
 
+  /* The tile a small window would show if one opened now. It reports the shape
+     of its video so the window can open at the right proportions, and on iOS —
+     which shrinks a video view rather than a screen — it is the view the system
+     takes over. Never a local one: the camera stops in the background. */
+  const spotlight = pickSpotlight(client, room);
+  const isSpotlight = (source: ProducerSource, peerId: string) =>
+    Boolean(spotlight && !spotlight.isLocal && spotlight.source === source && spotlight.peer.id === peerId);
+
   return (
     <View style={styles.root}>
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.minimize}
+          onPress={onMinimize}
+          accessibilityRole="button"
+          accessibilityLabel={t('mini.minimize')}
+        >
+          <MinimizeIcon size={19} color={colors.textDim} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {room.room?.name ?? t('room.meeting', { id: roomId })}
         </Text>
@@ -88,7 +144,7 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
         <LanguageToggle compact />
       </View>
 
-      <View style={styles.stage}>
+      <View style={styles.stage} ref={stageRef} onLayout={reportStageRect} collapsable={false}>
         {sharingPeerId && screenStream && sharingPeer ? (
           <View style={styles.flex}>
             <View style={styles.shareBanner}>
@@ -99,7 +155,15 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
               </Text>
             </View>
             <View style={styles.shareStage}>
-              <VideoTile peer={sharingPeer} stream={screenStream} source="screen" isLocal={isSharingLocally} contain />
+              <VideoTile
+                peer={sharingPeer}
+                stream={screenStream}
+                source="screen"
+                isLocal={isSharingLocally}
+                contain
+                iosPictureInPicture={isSpotlight('screen', sharingPeer.id)}
+                onVideoSize={isSpotlight('screen', sharingPeer.id) ? onSpotlightVideoSize : undefined}
+              />
             </View>
             <ScrollView horizontal style={styles.filmstrip} contentContainerStyle={styles.filmstripContent}>
               {allPeers.map((peer) => (
@@ -128,6 +192,8 @@ export function MeetingScreen({ roomId, onLeave }: { roomId: string; onLeave: ()
                 isLocal={Boolean(self && peer.id === self.id)}
                 isSpeaking={room.activeSpeakerId === peer.id}
                 audioLevel={room.audioLevels.get(peer.id) ?? 0}
+                iosPictureInPicture={isSpotlight('webcam', peer.id)}
+                onVideoSize={isSpotlight('webcam', peer.id) ? onSpotlightVideoSize : undefined}
               />
             ))}
           </Grid>
@@ -233,6 +299,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  minimize: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -4,
   },
   headerTitle: { color: colors.text, fontSize: 15, fontWeight: '600', flexShrink: 1 },
   headerMeta: { color: colors.textFaint, fontSize: 12.5 },

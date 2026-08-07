@@ -1,20 +1,32 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from './src/theme';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { PreJoinScreen } from './src/screens/PreJoinScreen';
 import { MeetingScreen } from './src/screens/MeetingScreen';
+import { PipScreen } from './src/screens/PipScreen';
+import { FloatingMeeting } from './src/components/FloatingMeeting';
 import { useRoomStore } from './src/store/roomStore';
 import { CloseIcon } from './src/components/Icons';
 import { LanguageToggle } from './src/components/LanguageToggle';
 import { useT, useTranslatable } from './src/i18n';
+import { pictureInPicture } from './src/native/pictureInPicture';
+import { usePictureInPicture } from './src/usePictureInPicture';
 
 export default function App() {
   const [roomId, setRoomId] = useState<string | null>(null);
-  const { status, fatalError, toasts, dismissToast, leave } = useRoomStore();
+  const { status, fatalError, toasts, dismissToast, leave, presentation, minimize, restore } = useRoomStore();
   const t = useT();
   const text = useTranslatable();
+
+  const inMeeting = Boolean(roomId) && (status === 'joined' || status === 'lobby');
+
+  /* One start time for the whole call, so the timer in the meeting and the one
+     in the floating window agree, and neither restarts on the way back. */
+  const startedAt = useRef(0);
+  if (inMeeting && startedAt.current === 0) startedAt.current = Date.now();
+  if (!inMeeting && startedAt.current !== 0) startedAt.current = 0;
 
   const goHome = useCallback(() => {
     leave();
@@ -22,28 +34,70 @@ export default function App() {
     useRoomStore.setState({ status: 'idle', fatalError: null });
   }, [leave]);
 
-  /* Android back button: close a sheet, then leave the meeting — never kill the app mid-call. */
+  const { reportVideoSize } = usePictureInPicture({ active: inMeeting, onLeave: goHome });
+
+  /**
+   * Android back, in order of least surprise: close what is open, then collapse
+   * the meeting rather than end it — the same as pressing back in Zoom — then
+   * step out to the system window, which is where "back" and "swipe away" mean
+   * the same thing. Only outside a meeting does back leave the app.
+   */
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      const { panel, setPanel } = useRoomStore.getState();
-      if (panel !== 'none') {
-        setPanel('none');
+      const store = useRoomStore.getState();
+      if (store.panel !== 'none') {
+        store.setPanel('none');
         return true;
       }
-      if (roomId) {
-        goHome();
+      if (!roomId || !store.client) return false;
+      if (store.presentation === 'full') {
+        store.minimize();
+        return true;
+      }
+      if (store.presentation === 'mini') {
+        // Leaving the app entirely would end the call, so back hands it to the
+        // system window instead. Where there is no such window, say so rather
+        // than quietly hanging up on everyone.
+        if (pictureInPicture.isSupported()) pictureInPicture.enter();
+        else store.pushToast({ key: 'mini.pipUnavailable' }, 'info');
         return true;
       }
       return false;
     });
     return () => subscription.remove();
-  }, [roomId, goHome]);
+  }, [roomId]);
+
+  /* --------------------------------------------------- the small window */
+
+  if (inMeeting && presentation === 'pip') {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.pipRoot}>
+          <PipScreen onVideoSize={reportVideoSize} />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   let content: React.ReactNode;
-  if (!roomId) {
-    content = <HomeScreen onOpenRoom={setRoomId} />;
+  if (!roomId || (inMeeting && presentation === 'mini')) {
+    content = (
+      <HomeScreen
+        onOpenRoom={setRoomId}
+        meetingInProgress={inMeeting && presentation === 'mini'}
+        onReturnToMeeting={restore}
+      />
+    );
   } else if (status === 'joined' || status === 'lobby') {
-    content = <MeetingScreen roomId={roomId} onLeave={goHome} />;
+    content = (
+      <MeetingScreen
+        roomId={roomId}
+        startedAt={startedAt.current}
+        onLeave={goHome}
+        onMinimize={minimize}
+        onSpotlightVideoSize={reportVideoSize}
+      />
+    );
   } else if (status === 'left' || status === 'error') {
     content = (
       <View style={styles.ended}>
@@ -71,6 +125,10 @@ export default function App() {
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
         {content}
 
+        {inMeeting && presentation === 'mini' && (
+          <FloatingMeeting startedAt={startedAt.current} onExpand={restore} onVideoSize={reportVideoSize} />
+        )}
+
         <View style={styles.toasts} pointerEvents="box-none">
           {toasts.map((toast) => (
             <View
@@ -95,6 +153,8 @@ export default function App() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  // No safe area and no chrome: the system window has neither.
+  pipRoot: { flex: 1, backgroundColor: colors.black },
   ended: {
     flex: 1,
     alignItems: 'center',

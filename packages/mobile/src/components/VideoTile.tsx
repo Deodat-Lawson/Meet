@@ -5,7 +5,9 @@ import { colorForPeer, initialsFor, type PeerInfo, type ProducerSource } from '@
 import { absoluteFill, colors, radius } from '../theme';
 import { HandIcon, MicOffIcon, ScreenShareIcon } from './Icons';
 import { useT } from '../i18n';
+import { iosPipOptions } from '../native/iosPictureInPicture';
 import { useRoomStore } from '../store/roomStore';
+import { releaseVideo, retainVideo } from '../videoVisibility';
 
 interface VideoTileProps {
   peer: PeerInfo;
@@ -17,6 +19,15 @@ interface VideoTileProps {
   compact?: boolean;
   /** Screen shares must never be cropped. */
   contain?: boolean;
+  /**
+   * Makes this the tile iOS shrinks into a Picture-in-Picture window when the
+   * app goes to the background. At most one tile at a time, and never a local
+   * one: the camera stops in the background, and a frozen self-view is worse
+   * than no window at all.
+   */
+  iosPictureInPicture?: boolean;
+  /** Reports the video's own proportions, not the tile's. */
+  onVideoSize?: (width: number, height: number) => void;
 }
 
 export function VideoTile({
@@ -28,6 +39,8 @@ export function VideoTile({
   audioLevel = 0,
   compact = false,
   contain = false,
+  iosPictureInPicture = false,
+  onVideoSize,
 }: VideoTileProps) {
   const t = useT();
   const setRenderSize = useRoomStore((s) => s.setRenderSize);
@@ -36,13 +49,12 @@ export function VideoTile({
   const showVideo = Boolean(stream) && (source === 'screen' || isLocal || peer.videoEnabled);
   const streamUrl = useMemo(() => (stream ? stream.toURL() : undefined), [stream]);
 
-  /* Resume the consumer while this tile is mounted, pause it when it unmounts. */
+  /* Resume the consumer while this tile is mounted, pause it when it unmounts —
+     counted, so the same video showing in two places at once stays resumed. */
   useEffect(() => {
     if (isLocal || !client) return;
-    void client.setConsumerVisible(peer.id, source, true);
-    return () => {
-      void client.setConsumerVisible(peer.id, source, false);
-    };
+    retainVideo(client, peer.id, source);
+    return () => releaseVideo(client, peer.id, source);
   }, [client, peer.id, source, isLocal]);
 
   const onLayout = (event: LayoutChangeEvent) => {
@@ -66,6 +78,10 @@ export function VideoTile({
           // Only the local camera is mirrored; a shared screen never is.
           mirror={isLocal && source === 'webcam'}
           zOrder={source === 'screen' ? 0 : 1}
+          iosPIP={iosPictureInPicture ? iosPipOptions(source, isLocal) : undefined}
+          onDimensionsChange={
+            onVideoSize ? (event) => onVideoSize(event.nativeEvent.width, event.nativeEvent.height) : undefined
+          }
         />
       ) : (
         <View style={styles.avatarWrap}>
