@@ -144,9 +144,13 @@ export const RecordIcon = ({ size = 22, color = colors.text }: IconProps) => (
   </Svg>
 );
 
+/** Brand mark: a padlock with a camera lens set into its body. */
 export const LogoIcon = ({ size = 34 }: IconProps) => (
   <Svg width={size} height={size} viewBox="0 0 100 100">
-    <Rect width={100} height={100} rx={22} fill={colors.accent} />
-    <Path d="M22 34h34a6 6 0 016 6v20a6 6 0 01-6 6H22a6 6 0 01-6-6V40a6 6 0 016-6zm44 12l16-10v28l-16-10z" fill="#fff" />
+    <Rect width={100} height={100} rx={22} fill={colors.brandDeep} />
+    <Rect x={26} y={46} width={48} height={35} rx={10} fill="#fff" />
+    <Path d="M36 46 V37 a14 14 0 0 1 28 0 v9" stroke="#fff" strokeWidth={8.5} fill="none" strokeLinecap="round" />
+    <Circle cx={47} cy={62} r={8} fill={colors.brandDeep} />
+    <Path d="M58 57 l9 -5.5 v20 l-9 -5.5 z" fill={colors.brandDeep} />
   </Svg>
 );
