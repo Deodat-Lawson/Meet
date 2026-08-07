@@ -26,8 +26,30 @@ export const DEFAULT_LOCALE: Locale = 'en';
 
 const en = {
   /* -------------------------------------------------------------- branding */
-  'app.name': 'Meet',
-  'app.description': 'Meet — secure video meetings with screen sharing, in your browser.',
+  'app.name': 'Hide Me',
+  'app.description': 'Hide Me — private video meetings. No account, no tracking, nothing stored.',
+
+  /* --------------------------------------------------------------- privacy
+   * Every line below is a property of the running system that can be checked,
+   * not a marketing claim. `privacy.limit` states what this is NOT, because a
+   * privacy page that omits the limitation is the least trustworthy kind. */
+  'privacy.heading': 'What this does and does not do',
+  'privacy.noAccounts.title': 'No accounts',
+  'privacy.noAccounts.body': 'No email, no phone number, no sign-up. Type a name and join.',
+  'privacy.noTracking.title': 'No tracking',
+  'privacy.noTracking.body': 'No analytics, no cookies, no third-party scripts. The page loads nothing from anyone else.',
+  'privacy.nothingStored.title': 'Nothing is stored',
+  'privacy.nothingStored.body': 'There is no database. Meetings and chat live in memory and are gone shortly after the last person leaves.',
+  'privacy.noRecording.title': 'Recording is off',
+  'privacy.noRecording.body': 'Recording is disabled on this server. If a host ever turns it on, everyone sees a badge for as long as it runs.',
+  'privacy.encrypted.title': 'Encrypted in transit',
+  'privacy.encrypted.body': 'Audio and video travel over DTLS-SRTP; the page and signalling use TLS. Nothing crosses the network in the clear.',
+  'privacy.selfHosted.title': 'Self-hosted and open',
+  'privacy.selfHosted.body': 'This runs on a server you control, and the source is public. You can read exactly what it does.',
+  'privacy.limit.title': 'Not end-to-end encrypted',
+  'privacy.limit.body':
+    'To send your video to several people at once, the server decrypts it and re-encrypts it for each participant. It is never written to disk, but while a call is running it exists in the server\u2019s memory. Whoever controls that server — and the cloud provider hosting it — could in principle reach it. This is the same trade-off Zoom, Meet and Teams make by default. If you need a guarantee nobody in the middle can ever access, no service of this design can give you one.',
+  'privacy.link': 'Privacy',
 
   /* ---------------------------------------------------------------- shared */
   'common.cancel': 'Cancel',
@@ -47,7 +69,7 @@ const en = {
 
   /* ------------------------------------------------------------------ home */
   'home.title': 'Start or join a meeting',
-  'home.subtitle': 'Video, audio and screen sharing that runs in your browser. No download, no account.',
+  'home.subtitle': 'Video, audio and screen sharing in your browser. No download, no account, nothing kept.',
   'home.newMeeting': 'New meeting',
   'home.meetingOptions': 'Meeting options',
   'home.hideOptions': 'Hide options',
@@ -63,7 +85,7 @@ const en = {
   'home.createFailed': 'Could not create the meeting.',
   'home.enterCode': 'Enter a meeting code or link.',
   'home.hint':
-    'Works in Chrome, Edge, Firefox and Safari, and in the Meet Android app. Screen sharing needs a desktop browser or the Android app.',
+    'Works in Chrome, Edge, Firefox and Safari, and in the Hide Me apps for macOS and Android. Screen sharing needs a desktop browser or one of the apps.',
 
   /* --------------------------------------------------------------- prejoin */
   'prejoin.title': 'Ready to join?',
@@ -310,8 +332,26 @@ export type MessageKey = keyof typeof en;
 
 const zh: Record<MessageKey, string> = {
   /* -------------------------------------------------------------- branding */
-  'app.name': 'Meet 会议',
-  'app.description': 'Meet 会议 —— 在浏览器中进行安全的视频会议，支持屏幕共享。',
+  'app.name': 'Hide Me',
+  'app.description': 'Hide Me —— 私密视频会议。无需账号，不做追踪，不留记录。',
+
+  'privacy.heading': '本服务能做什么，不能做什么',
+  'privacy.noAccounts.title': '无需账号',
+  'privacy.noAccounts.body': '无需邮箱、手机号或注册。输入名字即可加入。',
+  'privacy.noTracking.title': '不做追踪',
+  'privacy.noTracking.body': '没有统计分析、没有 Cookie、没有第三方脚本。页面不会向任何第三方发起请求。',
+  'privacy.nothingStored.title': '不留记录',
+  'privacy.nothingStored.body': '没有数据库。会议和聊天仅存在于内存中，最后一人离开后随即清除。',
+  'privacy.noRecording.title': '未开启录制',
+  'privacy.noRecording.body': '本服务器已关闭录制功能。若主持人开启录制，录制期间所有人都会看到提示标识。',
+  'privacy.encrypted.title': '传输加密',
+  'privacy.encrypted.body': '音视频通过 DTLS-SRTP 传输，页面与信令使用 TLS。数据不会以明文形式经过网络。',
+  'privacy.selfHosted.title': '自建且开源',
+  'privacy.selfHosted.body': '本服务运行在你自己掌控的服务器上，源代码公开，可自行查阅其具体行为。',
+  'privacy.limit.title': '并非端到端加密',
+  'privacy.limit.body':
+    '为了将你的视频同时转发给多人，服务器需要先解密再为每位参与者重新加密。这些数据不会写入磁盘，但在通话进行期间会存在于服务器内存中。掌控该服务器的人——以及托管它的云服务商——原则上可以接触到这些数据。Zoom、Meet 和 Teams 默认也是同样的取舍。如果你需要"任何中间方都无法接触"的保证，这类架构的服务都无法提供。',
+  'privacy.link': '隐私说明',
 
   /* ---------------------------------------------------------------- shared */
   'common.cancel': '取消',
@@ -331,7 +371,7 @@ const zh: Record<MessageKey, string> = {
 
   /* ------------------------------------------------------------------ home */
   'home.title': '发起或加入会议',
-  'home.subtitle': '在浏览器中直接进行视频、音频和屏幕共享。无需下载，无需注册。',
+  'home.subtitle': '在浏览器中进行视频、音频和屏幕共享。无需下载，无需注册，不留记录。',
   'home.newMeeting': '发起新会议',
   'home.meetingOptions': '会议选项',
   'home.hideOptions': '隐藏选项',
@@ -346,7 +386,7 @@ const zh: Record<MessageKey, string> = {
   'home.createFailedRetry': '无法创建会议，请重试。',
   'home.createFailed': '无法创建会议。',
   'home.enterCode': '请输入会议号或会议链接。',
-  'home.hint': '支持 Chrome、Edge、Firefox 和 Safari 浏览器，以及 Meet 安卓应用。屏幕共享需要在桌面浏览器或安卓应用中使用。',
+  'home.hint': '支持 Chrome、Edge、Firefox 和 Safari 浏览器，以及 Hide Me 的 macOS 与安卓应用。屏幕共享需要在桌面浏览器或客户端应用中使用。',
 
   /* --------------------------------------------------------------- prejoin */
   'prejoin.title': '准备好加入了吗？',

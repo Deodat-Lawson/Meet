@@ -1,6 +1,6 @@
-appId: com.meet.desktop
-productName: Meet
-copyright: Meet
+appId: online.hideme.desktop
+productName: Hide Me
+copyright: Hide Me
 
 directories:
   output: release
@@ -25,9 +25,9 @@ mac:
   # declares why it wants them. Without these the app launches and every
   # media call fails silently.
   extendInfo:
-    NSCameraUsageDescription: Meet uses your camera so other participants can see you.
-    NSMicrophoneUsageDescription: Meet uses your microphone so other participants can hear you.
-    NSScreenCaptureUsageDescription: Meet captures your screen when you choose to share it in a meeting.
+    NSCameraUsageDescription: Hide Me uses your camera so other participants can see you.
+    NSMicrophoneUsageDescription: Hide Me uses your microphone so other participants can hear you.
+    NSScreenCaptureUsageDescription: Hide Me captures your screen when you choose to share it in a meeting.
     LSMinimumSystemVersion: "11.0"
   # No Developer ID in this environment; produce an unsigned build rather than
   # failing. Set CSC_LINK/CSC_KEY_PASSWORD to sign.
@@ -37,7 +37,7 @@ dmg:
   # No space: the volume mounts at /Volumes/<title>, and electron-builder does
   # not quote that path when it calls `hdiutil detach`, so a space makes the
   # detach fail and takes the whole build with it.
-  title: "Meet-${version}"
+  title: "HideMe-${version}"
   icon: build/icon.icns
   contents:
     - x: 140

@@ -286,7 +286,7 @@ export class Room extends EventEmitter {
       other.connection.notify('newPeer', peer.toInfo());
     }
 
-    this.log.info({ peerId: peer.id, name: peer.displayName, total: this.peers.size }, 'peer joined');
+    this.log.info({ peerId: peer.id, total: this.peers.size }, 'peer joined');
 
     return {
       status: 'joined',

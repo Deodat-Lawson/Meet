@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { normalizeRoomId } from '@meet/protocol';
-import { VideoIcon } from '../components/icons';
+import { LogoIcon } from '../components/icons';
+import { PrivacyLink } from '../components/PrivacyPanel';
 import { LanguageToggle } from '../components/LanguageToggle';
 import { useT, useTranslatable, type TranslatableText } from '../i18n';
 
@@ -59,7 +60,7 @@ export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
         <div className="card-topbar">
           <div className="brand">
             <span className="brand-mark">
-              <VideoIcon size={18} />
+              <LogoIcon size={19} />
             </span>
             {t('app.name')}
           </div>
@@ -143,6 +144,8 @@ export function Home({ onNavigate }: { onNavigate: (path: string) => void }) {
         {error && <p className="error-text">{text(error)}</p>}
 
         <p className="hint">{t('home.hint')}</p>
+
+        <PrivacyLink />
       </div>
     </div>
   );

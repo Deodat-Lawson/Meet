@@ -204,7 +204,10 @@ export class SignalingServer {
     // Releases any requests that arrived while the room was being created.
     markReady(session);
 
-    log.info({ peerId, roomId, displayName }, 'socket connected');
+    // Deliberately no displayName: it is user-supplied personal data, and the
+    // whole point of an in-memory service is that it leaves no durable record of
+    // who was in a call. peerId is random per tab and meaningless afterwards.
+    log.info({ peerId, roomId }, 'socket connected');
   }
 
   private async handleRequest(session: Session, method: ClientRequestMethod, rawData: unknown): Promise<unknown> {

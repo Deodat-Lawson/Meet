@@ -37,6 +37,9 @@ const CJK = /[　-〿㐀-䶿一-鿿＀-￯]/;
  */
 const UNTRANSLATED_BY_DESIGN: Partial<Record<MessageKey, string>> = {
   'home.joinCodePlaceholder': 'a meeting code format, not prose',
+  // A brand name is the same word in every language; translating it would make
+  // the product unrecognisable to the person it was shared with.
+  'app.name': 'the product name',
 };
 
 function placeholders(template: string): string[] {

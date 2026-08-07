@@ -5,11 +5,15 @@ const STORAGE_KEY = 'meet.serverUrl';
 /**
  * Where the app points by default.
  *
- * On the Android emulator, 10.0.2.2 is the host machine's loopback; on a real
- * device it has to be the machine's LAN address (or the production hostname),
- * which is why the value is editable from the home screen.
+ * The hosted deployment, so an installed app works with no configuration. It is
+ * HTTPS deliberately: release builds reject cleartext traffic, which is the
+ * right default and means a plain-HTTP address only works in a debug build.
+ *
+ * Server settings on the home screen overrides this — 10.0.2.2 reaches the host
+ * machine from the Android emulator, and a LAN address works on a real device
+ * against a locally running stack.
  */
-const DEFAULT_SERVER = Platform.OS === 'android' ? 'http://10.0.2.2:4000' : 'http://127.0.0.1:4000';
+const DEFAULT_SERVER = 'https://meet.team-studio.space';
 
 let currentServer = DEFAULT_SERVER;
 

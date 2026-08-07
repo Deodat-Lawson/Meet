@@ -85,6 +85,18 @@ android {
         versionCode 1
         versionName "1.0"
     }
+    // Release signing material lives in android/keystore.properties, which is
+    // gitignored. Absent, the release build falls back to the debug key so it
+    // still builds — it just must not be published.
+    def keystorePropsFile = rootProject.file("keystore.properties")
+    def keystoreProps = new Properties()
+    if (keystorePropsFile.exists()) {
+        keystoreProps.load(new FileInputStream(keystorePropsFile))
+    }
+
+    def hasReleaseKey = keystoreProps['MEET_RELEASE_STORE_FILE'] != null ||
+        project.hasProperty('MEET_RELEASE_STORE_FILE')
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -97,7 +109,12 @@ android {
         // ~/.gradle/gradle.properties or as -P flags / ORG_GRADLE_PROJECT_* env
         // vars in CI. See packages/mobile/README.md.
         release {
-            if (project.hasProperty('MEET_RELEASE_STORE_FILE')) {
+            if (keystoreProps['MEET_RELEASE_STORE_FILE']) {
+                storeFile file(keystoreProps['MEET_RELEASE_STORE_FILE'])
+                storePassword keystoreProps['MEET_RELEASE_STORE_PASSWORD']
+                keyAlias keystoreProps['MEET_RELEASE_KEY_ALIAS']
+                keyPassword keystoreProps['MEET_RELEASE_KEY_PASSWORD']
+            } else if (project.hasProperty('MEET_RELEASE_STORE_FILE')) {
                 storeFile file(MEET_RELEASE_STORE_FILE)
                 storePassword MEET_RELEASE_STORE_PASSWORD
                 keyAlias MEET_RELEASE_KEY_ALIAS
@@ -112,9 +129,7 @@ android {
         release {
             // Falls back to the debug key for local release testing only; a build
             // without MEET_RELEASE_STORE_FILE must never be published.
-            signingConfig project.hasProperty('MEET_RELEASE_STORE_FILE')
-                ? signingConfigs.release
-                : signingConfigs.debug
+            signingConfig hasReleaseKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"

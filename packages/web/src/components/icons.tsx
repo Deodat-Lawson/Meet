@@ -177,6 +177,23 @@ export const CameraSwitchIcon = ({ size = 20, className }: IconProps) => (
   </svg>
 );
 
+/** Brand mark: a padlock with a camera lens set into its body. */
+export const LogoIcon = ({ size = 20, className }: IconProps) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" className={className} aria-hidden>
+    <rect x="18" y="44" width="64" height="46" rx="13" fill="currentColor" />
+    <path d="M31 44 V32 a19 19 0 0 1 38 0 v12" stroke="currentColor" strokeWidth="11" strokeLinecap="round" />
+    <circle cx="46" cy="66" r="11" fill="var(--brand-cut, #4c2fd6)" />
+    <path d="M60 60 l11 -7 v26 l-11 -7 z" fill="var(--brand-cut, #4c2fd6)" />
+  </svg>
+);
+
+export const ShieldCheckIcon = ({ size = 18, className }: IconProps) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 3 4.5 6v6c0 4.5 3.2 7.9 7.5 9 4.3-1.1 7.5-4.5 7.5-9V6L12 3Z" />
+    <path d="m9 12 2.2 2.2L15.5 10" />
+  </svg>
+);
+
 export const GlobeIcon = ({ size = 18, className }: IconProps) => (
   <svg {...base(size)} className={className}>
     <circle cx="12" cy="12" r="9" />

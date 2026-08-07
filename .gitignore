@@ -42,3 +42,8 @@ packages/desktop/node_modules/
 # rule above hides them, and without them a fresh clone cannot package the app.
 !packages/desktop/build/
 !packages/desktop/build/**
+
+# Android release signing material — losing it means never being able to ship an
+# update that installs over an existing copy. Back it up outside the repo.
+packages/mobile/android/keystore.properties
+packages/mobile/android/app/meet-release.keystore
