@@ -37,7 +37,13 @@ dmg:
   # No space: the volume mounts at /Volumes/<title>, and electron-builder does
   # not quote that path when it calls `hdiutil detach`, so a space makes the
   # detach fail and takes the whole build with it.
-  title: "TeamStudio-${version}"
+  #
+  # The arch is part of the title for the same class of reason. Both
+  # architectures are built in one run, one after the other; with a shared title
+  # the second mounts on top of the first volume, finds the /Applications
+  # symlink already there and dies with "File exists", so `npm run dist` only
+  # ever produced the arm64 image.
+  title: "TeamStudio-${version}-${arch}"
   icon: build/icon.icns
   contents:
     - x: 140
