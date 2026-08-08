@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FastifyInstance } from 'fastify';
@@ -10,6 +11,24 @@ import { workerPool } from '../sfu/WorkerPool.js';
 import { signalingServer } from '../signaling/SignalingServer.js';
 
 const startedAt = Date.now();
+
+/**
+ * The running version, read from our own manifest.
+ *
+ * This used to be `process.env.npm_package_version`, which npm sets only when it
+ * is npm that starts you. The container runs `node dist/index.js` directly, so
+ * the variable was never set and every deployment on earth reported the
+ * hardcoded fallback — the one number you most need to be true was the one
+ * number guaranteed not to be.
+ */
+const version: string = (() => {
+  try {
+    const manifest = fileURLToPath(new URL('../../package.json', import.meta.url));
+    return (JSON.parse(readFileSync(manifest, 'utf8')) as { version?: string }).version ?? 'unknown';
+  } catch {
+    return 'unknown';
+  }
+})();
 
 /**
  * `app` is intentionally loose in its logger/server generics: Fastify infers a
@@ -25,7 +44,7 @@ export async function registerRoutes(app: App): Promise<void> {
   app.get('/health', async () => ({
     status: 'ok',
     uptimeMs: Date.now() - startedAt,
-    version: process.env.npm_package_version ?? '1.0.0',
+    version,
   }));
 
   app.get('/api/metrics', async () => {

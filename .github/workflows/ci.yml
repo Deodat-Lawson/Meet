@@ -20,6 +20,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # One version across nine files; they drifted to three different values
+      # before anything checked.
+      - run: npm run version:check
       - run: npm run build -w @meet/protocol
       - name: Typecheck every package
         run: |

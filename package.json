@@ -1,8 +1,8 @@
 {
   "name": "meet",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Meet — production-grade WebRTC conferencing (SFU) for web and Android",
+  "description": "Meet \u2014 production-grade WebRTC conferencing (SFU) for web and Android",
   "workspaces": [
     "packages/protocol",
     "packages/client-core",
@@ -20,6 +20,8 @@
     "dev:server": "npm run dev -w @meet/server",
     "dev:web": "npm run dev -w @meet/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "version:set": "node scripts/version.mjs",
+    "version:check": "node scripts/version.mjs --check",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "clean": "rimraf packages/*/dist packages/*/node_modules node_modules"
