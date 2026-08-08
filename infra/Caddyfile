@@ -3,6 +3,23 @@
 {$SITE_ADDRESSES} {
 	encode zstd gzip
 
+	# Retired hostnames keep their certificate and keep answering, but anything
+	# that renders the app is sent on to the canonical name. The share link is
+	# built from the address bar, so without this a participant who opened an old
+	# link would copy an old link, and the retired name would keep recirculating
+	# forever.
+	#
+	# The API and the signalling socket are deliberately not redirected. An
+	# installed client configured with an old address talks to those directly and
+	# would break on a redirect it does not follow — whereas a page load lands on
+	# the new origin and every later request follows from there.
+	@retiredName {
+		not host {$DOMAIN}
+		not path /api/* /health
+		not header Connection *Upgrade*
+	}
+	redir @retiredName https://{$DOMAIN}{uri} permanent
+
 	# WebSocket upgrades must not be buffered or the signaling channel stalls.
 	@websocket {
 		header Connection *Upgrade*
