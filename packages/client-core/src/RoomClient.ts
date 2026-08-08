@@ -7,8 +7,12 @@ import {
   OPUS_SCREEN_AUDIO_OPTIONS,
   ProtocolError,
   SCREEN_CONSTRAINTS,
+  SCREEN_CONTENT_HINT,
+  SCREEN_DEGRADATION_PREFERENCE,
+  SCREEN_FRAME_RATES,
   SCREEN_SIMULCAST_ENCODINGS,
   SCREEN_SVC_ENCODINGS,
+  type ScreenShareMode,
   VIDEO_CONSTRAINTS,
   WEBCAM_SIMULCAST_ENCODINGS,
   WEBCAM_SVC_ENCODINGS,
@@ -533,7 +537,7 @@ export class RoomClient extends Emitter<RoomEvents> {
 
   /* --------------------------------------------------------- screen share */
 
-  async startScreenShare(withAudio = true): Promise<void> {
+  async startScreenShare(withAudio = true, mode: ScreenShareMode = 'text'): Promise<void> {
     if (this.state.local.screenSharing) return;
     if (!this.sendTransport) throw new Error('not connected');
     if (!this.media.supportsDisplayMedia()) {
@@ -546,7 +550,7 @@ export class RoomClient extends Emitter<RoomEvents> {
     let stream: MediaStream;
     try {
       stream = await this.media.getDisplayMedia({
-        video: SCREEN_CONSTRAINTS.video as MediaTrackConstraints,
+        video: { ...SCREEN_CONSTRAINTS.video, frameRate: SCREEN_FRAME_RATES[mode] } as MediaTrackConstraints,
         audio: withAudio ? (SCREEN_CONSTRAINTS.audio as MediaTrackConstraints) : false,
       });
     } catch (error) {
@@ -562,7 +566,7 @@ export class RoomClient extends Emitter<RoomEvents> {
     this.emit('localStream', { source: 'screen', stream });
 
     try {
-      await this.publishScreenTracks(stream, withAudio);
+      await this.publishScreenTracks(stream, withAudio, mode);
     } catch (error) {
       await this.stopScreenShare();
       throw error;
@@ -578,11 +582,22 @@ export class RoomClient extends Emitter<RoomEvents> {
     this.patchLocal({ screenSharing: true, screenAudioEnabled: Boolean(this.screenAudioProducer) });
   }
 
-  private async publishScreenTracks(stream: MediaStream, withAudio: boolean): Promise<void> {
+  private async publishScreenTracks(
+    stream: MediaStream,
+    withAudio: boolean,
+    mode: ScreenShareMode = 'text',
+  ): Promise<void> {
     if (!this.sendTransport) throw new Error('not connected');
 
     const videoTrack = stream.getVideoTracks()[0];
     if (!videoTrack) throw new Error('no screen video track');
+
+    // Tell the encoder what it is looking at, before it is handed the track.
+    // Without this a screen share is encoded as if it were a face: under any
+    // pressure the resolution goes first, which is the one thing text cannot
+    // survive. It has to be set before `produce()` — the sender reads it when
+    // the encoder is configured.
+    videoTrack.contentHint = SCREEN_CONTENT_HINT[mode];
 
     const useSvc = this.prefersVp9();
     this.screenProducer = await this.sendTransport.produce({
@@ -591,6 +606,8 @@ export class RoomClient extends Emitter<RoomEvents> {
       codecOptions: { videoGoogleStartBitrate: 1500 },
       appData: { source: 'screen' },
     });
+
+    await this.applyDegradationPreference(this.screenProducer, SCREEN_DEGRADATION_PREFERENCE[mode]);
 
     this.screenProducer.on('transportclose', () => {
       this.screenProducer = undefined;
@@ -614,6 +631,28 @@ export class RoomClient extends Emitter<RoomEvents> {
       } catch (error) {
         console.warn('[room] screen audio could not be published', error);
       }
+    }
+  }
+
+  /**
+   * Chrome derives this from `contentHint`; Firefox and Safari do not, and it is
+   * the setting that decides whether a congested link costs frames or sharpness.
+   * mediasoup-client has no parameter for it, so it goes on the sender directly.
+   */
+  private async applyDegradationPreference(
+    producer: Producer,
+    preference: RTCDegradationPreference,
+  ): Promise<void> {
+    const sender = (producer as unknown as { rtpSender?: RTCRtpSender }).rtpSender;
+    if (!sender?.getParameters) return;
+    try {
+      const parameters = sender.getParameters();
+      parameters.degradationPreference = preference;
+      await sender.setParameters(parameters);
+    } catch (error) {
+      // Not fatal: the content hint alone gets this right on Chromium, which is
+      // where screen sharing overwhelmingly happens.
+      console.warn('[room] could not set degradationPreference', error);
     }
   }
 

@@ -76,13 +76,58 @@ export const WEBCAM_SVC_ENCODINGS = [{ maxBitrate: 1_500_000, scalabilityMode: '
  * Screen share ladder. Two spatial layers only: a legible thumbnail and full
  * resolution. Text content needs bitrate more than it needs frame rate, so the
  * top layer gets a generous ceiling.
+ *
+ * No `dtx` here: discontinuous transmission is an audio feature. It was accepted
+ * silently and did nothing.
  */
 export const SCREEN_SIMULCAST_ENCODINGS = [
-  { scaleResolutionDownBy: 2, maxBitrate: 800_000, scalabilityMode: 'L1T2', dtx: true },
-  { scaleResolutionDownBy: 1, maxBitrate: 4_000_000, scalabilityMode: 'L1T2', dtx: true },
+  { scaleResolutionDownBy: 2, maxBitrate: 800_000, scalabilityMode: 'L1T2' },
+  { scaleResolutionDownBy: 1, maxBitrate: 4_000_000, scalabilityMode: 'L1T2' },
 ];
 
-export const SCREEN_SVC_ENCODINGS = [{ maxBitrate: 4_000_000, scalabilityMode: 'L2T3', dtx: true }];
+export const SCREEN_SVC_ENCODINGS = [{ maxBitrate: 4_000_000, scalabilityMode: 'L2T3' }];
+
+/**
+ * What is being shared, which decides what to sacrifice when the link cannot
+ * carry everything.
+ *
+ * This is the single most important thing to get right about a screen share,
+ * and it is invisible until it is wrong. WebRTC's default behaviour is tuned
+ * for a talking head: under pressure it holds the frame rate and drops
+ * resolution, because a smooth blurry face still reads as a face. Apply that to
+ * a slide of source code and you get thirty crisp frames a second of text
+ * nobody can read.
+ *
+ *  - `text`   an IDE, a document, a slide. Hold resolution, let the frame rate
+ *             collapse to nothing if it must — a still, sharp screen is exactly
+ *             what the viewer wants.
+ *  - `motion` a video, an animation, a game. Now smoothness is the point and
+ *             softening the picture is the right trade.
+ */
+export type ScreenShareMode = 'text' | 'motion';
+
+/**
+ * The hint handed to the encoder, and the reason this matters more than the
+ * bitrate ladder does.
+ *
+ * Browsers map `contentHint` onto the encoder's rate control *and* onto its
+ * degradation preference, so setting it correctly fixes several things at once
+ * that cannot otherwise be reached through mediasoup's API.
+ */
+export const SCREEN_CONTENT_HINT: Record<ScreenShareMode, 'detail' | 'motion'> = {
+  text: 'detail',
+  motion: 'motion',
+};
+
+/**
+ * Belt and braces for the above. Chrome infers this from `contentHint`; not
+ * every engine does, and it is the setting that actually decides whether text
+ * survives a congested link.
+ */
+export const SCREEN_DEGRADATION_PREFERENCE: Record<ScreenShareMode, RTCDegradationPreference> = {
+  text: 'maintain-resolution',
+  motion: 'balanced',
+};
 
 /** Constraints used when opening the local camera. */
 export const VIDEO_CONSTRAINTS = {
@@ -94,12 +139,25 @@ export const VIDEO_CONSTRAINTS = {
 
 export type VideoQuality = keyof typeof VIDEO_CONSTRAINTS;
 
-/** Screen capture constraints — high resolution, moderate frame rate. */
+/**
+ * Screen capture constraints — high resolution, frame rate chosen by mode.
+ *
+ * Capturing at 30 for text as well is deliberate: the old 15 was a *capture*
+ * cap, which throws frames away before the encoder can decide whether it could
+ * afford them. Ask for 30 and let the encoder drop what the link cannot carry —
+ * with `maintain-resolution` it drops frames rather than sharpness, so a still
+ * screen stays crisp and a scrolling one stays readable.
+ */
+export const SCREEN_FRAME_RATES: Record<ScreenShareMode, MediaTrackConstraints['frameRate']> = {
+  text: { ideal: 30, max: 30 },
+  motion: { ideal: 30, max: 60 },
+};
+
 export const SCREEN_CONSTRAINTS = {
   video: {
     width: { max: 1920 },
     height: { max: 1080 },
-    frameRate: { ideal: 15, max: 30 },
+    frameRate: { ideal: 30, max: 30 },
   },
   audio: {
     autoGainControl: false,
@@ -143,7 +201,11 @@ export const OPUS_SCREEN_AUDIO_OPTIONS = {
  */
 export function spatialLayerForWidth(width: number, layers = 3): number {
   if (layers <= 1) return 0;
-  if (layers === 2) return width >= 640 ? 1 : 0;
+  // Two layers means a screen share, where the lower one is half resolution —
+  // 960 wide from a 1080p desktop, which is where text stops being readable
+  // rather than merely soft. The threshold is lower than the webcam ladder's on
+  // purpose: it is worth spending bitrate to cross it.
+  if (layers === 2) return width >= 480 ? 1 : 0;
   if (width >= 960) return 2;
   if (width >= 400) return 1;
   return 0;
