@@ -43,7 +43,11 @@ dmg:
   # the second mounts on top of the first volume, finds the /Applications
   # symlink already there and dies with "File exists", so `npm run dist` only
   # ever produced the arm64 image.
-  title: "TeamStudio-${version}-${arch}"
+  # No separator before ${arch}: it already carries its own leading dash, and is
+  # empty for x64 — "TeamStudio-1.0.0-" and "TeamStudio-1.0.0--arm64" is what a
+  # hand-added one produces, and the volume name is visible to anyone who mounts
+  # the image.
+  title: "TeamStudio-${version}${arch}"
   icon: build/icon.icns
   contents:
     - x: 140
