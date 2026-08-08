@@ -72,6 +72,17 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+/**
+ * The architectures to build, from `reactNativeArchitectures` in
+ * gradle.properties — the same property the React Native plugin reads, so
+ * `-PreactNativeArchitectures=arm64-v8a` narrows both the native build and the
+ * APK split in one go.
+ */
+def reactNativeArchitectures() {
+    def value = project.getProperties().get("reactNativeArchitectures")
+    return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+}
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -84,6 +95,26 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+    }
+
+    // One APK per architecture, plus a universal one.
+    //
+    // A phone can only execute one of these, but a single APK has to carry all
+    // four: the two x86 slices exist for emulators and are 52 MB of code no
+    // handset can run. That is the difference between a 31 MB download and a
+    // 99 MB one, which matters a great deal when the person installing it is on
+    // a phone rather than a fast connection.
+    //
+    // Play does this splitting itself from the .aab, so this is for the APKs
+    // handed to people directly. The universal one stays for "just give me a
+    // file that works anywhere".
+    splits {
+        abi {
+            enable true
+            reset()
+            include(*reactNativeArchitectures())
+            universalApk true
+        }
     }
     // Release signing material lives in android/keystore.properties, which is
     // gitignored. Absent, the release build falls back to the debug key so it
