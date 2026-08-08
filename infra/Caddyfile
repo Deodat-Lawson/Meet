@@ -1,5 +1,15 @@
 # Terminates TLS with an automatic Let's Encrypt certificate and proxies both the
 # app and the signaling WebSocket to the SFU container.
+#
+# Every name in SITE_ADDRESSES serves the app in full, and none of them redirects
+# to any other. That is deliberate and it is not a tidiness oversight: the names
+# are independent ways in, so that a participant for whom one hostname is blocked
+# can be given another. A redirect to a canonical name would collapse them into
+# one, and would send exactly the people who need the alternative back to the
+# address that does not work for them.
+#
+# It is also why the share link is built from the address bar rather than from a
+# configured domain: you share the way in that is working for you.
 {$SITE_ADDRESSES} {
 	encode zstd gzip
 
